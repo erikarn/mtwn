@@ -21,13 +21,12 @@ struct mtwn_softc {
 	uint32_t		sc_debug;
 	struct mtx		sc_mtx;
 	int			sc_detached;
-
-	/* USB state */
-	struct usb_device	*sc_udev;
-	struct usb_interface	*sc_iface;
 };
 #define	MTWN_LOCK(sc)		mtx_lock(&(sc)->sc_mtx)
 #define	MTWN_UNLOCK(sc)		mtx_unlock(&(sc)->sc_mtx)
 #define	MTWN_LOCK_ASSERT(sc, t)	mtx_assert(&(sc)->sc_mtx, t)
+
+extern	int mtwn_attach(struct mtwn_softc *);
+extern	int mtwn_detach(struct mtwn_softc *);
 
 #endif	/* __IF_MTWN_VAR_H__ */
