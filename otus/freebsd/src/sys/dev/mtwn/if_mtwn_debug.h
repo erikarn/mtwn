@@ -18,6 +18,9 @@
 #define	__IF_MTWN_DEBUG_H__
 
 enum {
+
+	MTWN_DEBUG_USB = 0x00000040,
+
 	MTWN_DEBUG_ANY = 0xffffffff
 };
 
