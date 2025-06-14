@@ -73,119 +73,62 @@ mtwn_chip_mt7610u_reset(struct mtwn_softc *sc)
 	return (0);
 }
 
+/* mt7610u_register_device() - needs to do these */
+/* TODO: maybe fold this into mtwn_chip_mt7610u_setup_hardware() */
+/*
+ * allocate mcu_data
+ * alloc queues - we've already done this, so ignore
+ * mt76x0u_init_hardware(sc, true);
+ * check fragments for AMSDU support
+ * mt76x0_register_device()
+ */
+
 static int
-mtwn_chip_mt7610u_init_hardware(struct mtwn_softc *sc)
+mtwn_chip_mt7610u_setup_hardware(struct mtwn_softc *sc)
 {
 	/* XXX TODO: Our version of mt76x0u_probe() */
 	device_printf(sc->sc_dev, "%s: called\n", __func__);
+
+	/* mt76u_init() - we've already done this */
+	/* chip onoff */
+	/* wait for mac */
+	/* populate asic/mac rev */
+	/* efuse check */
+
+	/* mt76x0u_register_device() */
+	return (0);
+}
+
+static int
+mtwn_chip_mt7610u_init_hardware(struct mtwn_softc *sc, bool reset)
+{
+	/* mt76x0_chip_onoff(true, reset) */
+	/* wait for mac */
+	/* mt76x0u_mcu_init() */
+	/* mt76x0_init_usb_dma */
+	/* mt76x0_init_hardware */
+	/* mt76x02u_init_beacon_config */
+
+#if 0
+	mt76_rmw(sc, MT_US_CYC_CFG, MT_US_CYC_CNT, 0x1e);
+	mt76_wr(sc, MT_TXOP_CTRL_CFG,
+	    FIELD_PREP(MT_TXOP_TRUN_EN, 0x3f) |
+	    FIELD_PREP(MT_TXOP_EXT_CCA_DLY, 0x58));
+#endif
+
 	return (0);
 }
 
 int
 mtwn_chip_mt7610u_attach(struct mtwn_softc *sc)
 {
-	/* Attach methods */
+	/* Chip attach methods */
 	sc->sc_chipops.sc_chip_detach = mtwn_chip_mt7610u_detach;
 	sc->sc_chipops.sc_chip_reset = mtwn_chip_mt7610u_reset;
-	sc->sc_chipops.sc_chip_init_hardware = mtwn_chip_mt7610u_init_hardware;
+	sc->sc_chipops.sc_chip_setup_hardware =
+	    mtwn_chip_mt7610u_setup_hardware;
+	sc->sc_chipops.sc_chip_init_hardware =
+	    mtwn_chip_mt7610u_init_hardware;
 
 	return (0);
 }
-
-#if 0
-int
-mtwn_mt76x0_usb_attach(struct mtwn_softc *sc)
-{
-	/* TODO: Setup driver methods */
-}
-
-int
-mtwn_mt76x0_usb_setup_mcu(struct mtwn_softc *sc)
-{
-	/* TODO: setup MCU methods */
-}
-
-int
-mt76x0u_init_hardware(struct mtwn_softc *sc, bool reset)
-{
-	mt76x0_chip_onoff(sc, true, reset);
-
-	if (!mtwn_mt76x02_wait_for_mac(sc)) {
-		return error;
-	}
-
-	/* setup MCU methods */
-
-	/* init USB DMA */
-	ret = mt76x0_init_usb_dma(sc);
-
-	/* Setup hardware */
-	ret = mt76x0_init_hardware(sc);
-
-	/* Beacon setup */
-	mt76x02u_init_beacon_config(sc);
-
-	mt76_rmw(sc, MT_US_CYC_CFG, MT_US_CYC_CNT, 0x1e);
-	mt76_wr(sc, MT_TXOP_CTRL_CFG,
-	    FIELD_PREP(MT_TXOP_TRUN_EN, 0x3f) |
-	    FIELD_PREP(MT_TXOP_EXT_CCA_DLY, 0x58));
-
-	return (0);
-}
-
-/*
- * TODO: yes I need to document this, rename it to something
- * sensible, etc.
- */
-int
-mt76x0u_register_device(struct mtwn_softc *)
-{
-	/* alloc queues */
-
-	mt76x0u_init_hardware(sc, true);
-
-	/*
-	 * Check whether hardware scatter-gather support is available;
-	 * this is required for A-MSDU.
-	 */
-
-	error = mt76x0_register_device(sc);
-	handle error;
-
-	/* Mark as ready */
-}
-
-/* Our version of mt76x0u_probe() */
-int
-mtwn_mt76x0_usb_setup(struct mtwn_softc *)
-{
-
-	/* mt76x02u_init_mcu() - sets up the MCU methods */
-
-	/*
-	 * mt76u_init() - which would setup USB methods and some config like
-	 * usb data length based on pipe config, mt76u_check_sg(), setup
-	 * usb fifos/workers, etc.  That's done / needs to be finished
-	 * outside of here; in usb/if_mtwn_usb_attach.c.  So, go do
-	 * all of that stuff there too.
-	 */
-
-	/* Disable HW, otherwise MCU may fail during hot reboot */
-	mtwn_mt76x0_chip_onoff(sc, false, false);
-
-	/* Wait for MAC */
-	if (!mtwn_mt76x02_wait_for_mac(sc)) {
-		return error;
-	}
-
-	/* Populate MT_ASIC_VERSION */
-	/* Populate MT_MAC_CSR0 (mac revision) */
-
-	/* Check if eFUSE is / isn't present */
-
-	error = mt76x0u_register_device(sc);
-	error; etc;
-
-}
-
-#endif
