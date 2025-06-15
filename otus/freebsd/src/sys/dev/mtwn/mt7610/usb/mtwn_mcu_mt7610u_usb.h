@@ -17,6 +17,6 @@
 #define	__MTWN_MCU_MT7610U_USB_H__
 
 extern	int mtwn_mcu_mt7610u_attach(struct mtwn_softc *);
-extern	int mtwn_mt7610u_mcu_init(struct mtwn_softc *);
+extern	int mtwn_mt7610u_mcu_init(struct mtwn_softc *, const void *, size_t);
 
 #endif	/* __MTWN_MCU_MT7610U_USB_H__ */
