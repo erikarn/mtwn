@@ -28,8 +28,6 @@ extern	void mtwn_bulk_tx_ac_be_callback(struct usb_xfer *, usb_error_t);
 extern	void mtwn_bulk_tx_ac_bk_callback(struct usb_xfer *, usb_error_t);
 extern	void mtwn_bulk_tx_ac_vi_callback(struct usb_xfer *, usb_error_t);
 extern	void mtwn_bulk_tx_ac_vo_callback(struct usb_xfer *, usb_error_t);
-
-extern	void mtwn_bulk_tx_inband_cmd_callback(struct usb_xfer *, usb_error_t);
 extern	void mtwn_bulk_tx_hcca_callback(struct usb_xfer *, usb_error_t);
 
 #endif	/* __IF_MTWN_USB_TX_H__ */

@@ -266,12 +266,6 @@ mtwn_bulk_tx_ac_vo_callback(struct usb_xfer *xfer, usb_error_t error)
 }
 
 void
-mtwn_bulk_tx_inband_cmd_callback(struct usb_xfer *xfer, usb_error_t error)
-{
-	mtwn_bulk_tx_callback_qid(xfer, error, MTWN_BULK_TX_INBAND_CMD);
-}
-
-void
 mtwn_bulk_tx_hcca_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	mtwn_bulk_tx_callback_qid(xfer, error, MTWN_BULK_TX_HCCA);
