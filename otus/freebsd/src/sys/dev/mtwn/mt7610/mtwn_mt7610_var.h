@@ -16,8 +16,23 @@
 #ifndef	__MTWN_MT7610_VAR_H__
 #define	__MTWN_MT7610_VAR_H__
 
+struct mtwn_mt7610_rx_freq_cal {
+	int8_t high_gain[MTWN_MAX_CHAINS];
+	int8_t rssi_offset[MTWN_MAX_CHAINS];
+	int8_t lna_gain;
+	uint8_t mcu_gain;
+	int16_t temp_offset;
+	uint8_t freq_offset;
+};
+
 struct mtwn_mt7610_chip_priv {
 	char *mcu_data;
+
+	struct mtwn_mt7610_rx_freq_cal freq_cal;
+
 };
+
+#define	MTWN_MT7610_CHIP_SOFTC(sc)			\
+	    ((struct mtwn_mt7610_chip_priv *)(sc->chipops_priv))
 
 #endif	/* __MTWN_MT7610_VAR_H__ */
