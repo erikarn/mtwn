@@ -20,9 +20,6 @@ extern	int mtwn_mt76x0_set_wlan_state(struct mtwn_softc *, uint32_t, bool);
 extern	int mtwn_mt76x0_chip_onoff(struct mtwn_softc *, bool, bool);
 extern	int mtwn_mt7610_mac_init(struct mtwn_softc *);
 
-/* placeholders! */
-extern	int mtwn_mt7610_phy_init(struct mtwn_softc *);
-
 extern	int mtwn_mt7610_get_supported_bands(struct mtwn_softc *,
 	    struct mtwn_supported_bands *);
 extern	int mtwn_mt7610_get_supported_streams(struct mtwn_softc *,
