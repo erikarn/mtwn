@@ -39,6 +39,12 @@ Stuff that I need to revisit
 * .. and then make sure the re-init path will do the right thing if
   buffers are already allocated/on lists...
 
+===
+
+Porting mt76x02u_mac_start():
+
+* [done] mt76x02_mac_reset_counters()
+* mt76x02_wait_for_wpdma()
 
 ===
 
@@ -114,6 +120,8 @@ VIF creation
 
 * Need to figure out what's doing the transmit queue management here;
   mt76 wcid has a txq and some state machine around it?
+* no call to mac_wcid_setup / set_drop - that's done in
+  sta_add / sta_remove ?
 
 --
 
@@ -143,6 +151,8 @@ mt76x2u_stop():
   - update MT76_STATE_RUNNING state bit
   - mt76u_stop_tx()
   - mt76x2u_stop_hw()
+
+When is mt76x02u_mac_start() called? Shit I need to port this.
 
 --
 
