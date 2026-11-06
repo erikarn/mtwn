@@ -59,6 +59,7 @@
 #include "if_mtwn_debug.h"
 
 #include "if_mtwn_net80211.h"
+#include "if_mtwn_wcid.h"
 
 static const uint8_t chan_list_5ghz[] =
     { 36, 40, 44, 48, 52, 56, 60, 64,
@@ -206,6 +207,9 @@ mtwn_net80211_vap_delete(struct ieee80211vap *vap)
 	MTWN_TODO_PRINTF(sc, "%s: put to INIT, drain nstate\n", __func__);
 
 	/* TODO: all of the other clean up, de-allocate wcids, sta, etc */
+	MTWN_LOCK(sc);
+	mtwn_wcid_cleanup(sc, &uvp->group_wcid);
+	MTWN_UNLOCK(sc);
 
 	ieee80211_ratectl_deinit(vap);
 	ieee80211_vap_detach(vap);
@@ -381,6 +385,14 @@ mtwn_net80211_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 	    ieee80211_media_status, mac);
 
 	/* TODO: mtwn_vap_postattach - likely will program in enough to start stuff up */
+
+	/*
+	 * TODO: mt76x02_vif_init() - likely chipset specific, same as
+	 * the vif bitmask stuff done above
+	 */
+	MTWN_LOCK(sc);
+	mtwn_wcid_init(sc, &uvp->group_wcid, MTWN_VIF_WCID(vif_idx), 0);
+	MTWN_UNLOCK(sc);
 
 	return (vap);
 }

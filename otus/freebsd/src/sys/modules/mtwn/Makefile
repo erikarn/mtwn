@@ -10,6 +10,7 @@ SRCS    = if_mtwn.c \
 	  if_mtwn_firmware.c \
 	  if_mtwn_mcu.c \
 	  if_mtwn_net80211.c \
+	  if_mtwn_wcid.c \
 	  bus_if.h device_if.h usb_if.h usbdevs.h \
 	  opt_wlan.h
 

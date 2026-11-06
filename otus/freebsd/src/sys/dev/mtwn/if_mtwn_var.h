@@ -193,6 +193,12 @@ struct mtwn_phy_capabilities {
 
 #define	MTWN_MACADDR_LIST_SIZE		8
 
+#define	MTWN_VIF_WCID(_idx)		(254 - ((_idx) & 7))
+struct mtwn_wcid {
+	uint8_t idx;
+	uint8_t phy_idx;
+};
+
 struct mtwn_softc {
 	struct ieee80211com	sc_ic;
 	device_t		sc_dev;
@@ -415,6 +421,9 @@ struct mtwn_vap {
 				    struct mbuf *, int,
 				    const struct ieee80211_rx_stats *,
 				    int, int);
+
+	/* TODO: what is mt76 using this for? versus bss nodes? */
+	struct mtwn_wcid group_wcid;
 };
 #define	MTWN_VAP(vap)		((struct mtwn_vap *)(vap))
 
