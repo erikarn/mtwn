@@ -461,3 +461,38 @@ mtwn_mt7610_mac_config_macaddr_list(struct mtwn_softc *sc)
 		macaddr[0] ^= ((i - 1) << 2);
 	}
 }
+
+/**
+ * @brief Clear the MAC counter list.
+ *
+ * This is performed here by reading all of the registers, which clears them.
+ */
+int
+mtwn_mt7610_mac_reset_counters(struct mtwn_softc *sc)
+{
+	int i;
+
+	MTWN_LOCK_ASSERT(sc, MA_OWNED);
+
+	/*
+	 * Note: here's an example where being able to catch a read error
+	 * would be great.
+	 */
+	(void) MTWN_REG_READ_4(sc, MT7610_REG_RX_STAT_0);
+	(void) MTWN_REG_READ_4(sc, MT7610_REG_RX_STAT_1);
+	(void) MTWN_REG_READ_4(sc, MT7610_REG_RX_STAT_2);
+	(void) MTWN_REG_READ_4(sc, MT7610_REG_TX_STA_0);
+	(void) MTWN_REG_READ_4(sc, MT7610_REG_TX_STA_1);
+	(void) MTWN_REG_READ_4(sc, MT7610_REG_TX_STA_2);
+
+	for (i = 0; i < 16; i++)
+		(void) MTWN_REG_READ_4(sc, MT7610_REG_TX_AGG_CNT(i));
+
+	for (i = 0; i < 16; i++)
+		(void) MTWN_REG_READ_4(sc, MT7610_REG_TX_STAT_FIFO);
+
+	MTWN_TODO_PRINTF(sc, "%s: actually clear the stats struct\n",
+	    __func__);
+
+	return (0);
+}
