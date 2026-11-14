@@ -258,6 +258,8 @@ mtwn_net80211_scan_curchan(struct ieee80211_scan_state *ss,
 	struct mtwn_softc *sc = IF_MTWN_NET80211_TO_SC(ss->ss_ic);
 
 	MTWN_TODO_PRINTF(sc, "%s: called\n", __func__);
+
+	sc->sc_scan_curchan(ss, maxdwell);
 }
 
 static void
