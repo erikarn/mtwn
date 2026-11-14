@@ -132,6 +132,18 @@ Channel programming
   - mac_stop; phy_set_channel; mac_cc_reset; mac_resume
   - pre_tbtt_enable(true)
 
+* mt76x2u_phy_set_channel()
+  - lots going on here; including a bunch of mcu routines I'll
+    need to port
+
+* mcu calibrate
+  - requires mcu code as said above
+  - requires some calibration state in the driver
+
+* phy calibrate
+  - this is deferred work in mt76; i'll need to go write up something
+    that does this too!
+
 --
 
 Start

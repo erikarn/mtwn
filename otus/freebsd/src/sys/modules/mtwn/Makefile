@@ -28,6 +28,7 @@ SRCS	+= mtwn_mt7610_phy.c
 SRCS	+= mtwn_chip_mt7610u_usb.c
 SRCS	+= mtwn_beacon_mt7610u_usb.c
 # SRCS	+= mtwn_mcu_mt7610u_usb.c
+SRCS	+= mtwn_mt7610u_phy.c
 
 # .PATH: ${.CURDIR}/../../dev/mtw/usb
 # SRCS	+= if_mtw_usb.c
