@@ -19,5 +19,6 @@
 extern	bool mtwn_mt7610_mcu_firmware_running(struct mtwn_softc *);
 extern	int mtwn_mt7610_mcu_function_select(struct mtwn_softc *, uint32_t,
 	    uint32_t);
+extern	int mtwn_mt7610_mcu_calibrate(struct mtwn_softc *, uint32_t, uint32_t);
 
 #endif	/* __MTWN_MT7610_MCU_H__ */

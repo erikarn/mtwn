@@ -62,6 +62,7 @@
 #include "mtwn_mt7610_reg.h"
 #include "mtwn_mt7610_mcu_reg.h"
 #include "mtwn_mt7610_mcu.h"
+#include "mtwn_mt7610_var.h"
 
 bool
 mtwn_mt7610_mcu_firmware_running(struct mtwn_softc *sc)
@@ -87,6 +88,9 @@ mtwn_mt7610_mcu_function_select(struct mtwn_softc *sc, uint32_t func,
 	msg.func = htole32(func);
 	msg.value = htole32(val);
 
+	MTWN_DPRINTF(sc, MTWN_DEBUG_CMD, "%s: FUNC, func=%d, val=%d\n",
+	    __func__, func, val);
+
 	/* TODO: comment it out for now; force wait completion */
 #if 0
 	/* Wait for each of them except Q_SELECT */
@@ -99,5 +103,50 @@ mtwn_mt7610_mcu_function_select(struct mtwn_softc *sc, uint32_t func,
 	/* Wait for TX completion if requested, don't want for RX notif */
 	ret = MTWN_MCU_SEND_MSG(sc, MT7610_MCU_CMD_FUN_SET_OP, &msg,
 	    sizeof(msg), NULL, NULL, wait, false);
+
+	if (ret) {
+		MTWN_ERR_PRINTF(sc, "%s: failed; err=%d\n", __func__, ret);
+	}
+
 	return (ret);
+}
+
+/**
+ * @brief Perform a MCU calibrate firmware command.
+ */
+int
+mtwn_mt7610_mcu_calibrate(struct mtwn_softc *sc, uint32_t func, uint32_t val)
+{
+	struct mtwn_mt7610_mcu_calibrate_msg msg = { 0 };
+	bool wait = true;
+	int ret;
+
+	msg.func = htole32(func);
+	msg.value = htole32(val);
+
+	MTWN_DPRINTF(sc, MTWN_DEBUG_CMD, "%s: CALIBRATE, func=%d, val=%d\n",
+	    __func__, func, val);
+
+	wait = true;
+
+	if (MTWN_MT7610_CHIP_IS_MT7610E(sc))
+		MTWN_REG_RMW_4(sc, MT76_REG_MCU_COM_REG0, (1 << 31), 0);
+
+	ret = MTWN_MCU_SEND_MSG(sc, MT7610_MCU_CMD_FUN_SET_OP, &msg,
+	    sizeof(msg), NULL, NULL, wait, false);
+
+	if (ret) {
+		MTWN_ERR_PRINTF(sc, "%s: failed; err=%d\n", __func__, ret);
+		return (ret);
+	}
+
+	/* Check for timeout */
+	if (MTWN_MT7610_CHIP_IS_MT7610E(sc) &&
+		!mtwn_reg_poll(sc, MT76_REG_MCU_COM_REG0,
+		    (1 << 31), (1 << 31), 100 * 1000)) {
+			MTWN_ERR_PRINTF(sc, "%s: failed; timeout\n", __func__);
+			return (ETIMEDOUT);
+	}
+
+	return (0);
 }

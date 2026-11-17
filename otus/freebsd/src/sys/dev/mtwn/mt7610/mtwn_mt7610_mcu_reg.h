@@ -92,6 +92,32 @@ struct mtwn_mt7610_mcu_func_select_msg {
 	uint32_t value;
 };
 
+#define	MT7610_MCU_CALIBRATE_FUNC_R		1
+#define	MT7610_MCU_CALIBRATE_FUNC_TEMP_SENSOR	2
+#define	MT7610_MCU_CALIBRATE_FUNC_RXDCOC	3
+#define	MT7610_MCU_CALIBRATE_FUNC_RC		4
+#define	MT7610_MCU_CALIBRATE_FUNC_SX_LOGEN	5
+#define	MT7610_MCU_CALIBRATE_FUNC_LC		6
+#define	MT7610_MCU_CALIBRATE_FUNC_TX_LOFT	7
+#define	MT7610_MCU_CALIBRATE_FUNC_TXIQ		8
+#define	MT7610_MCU_CALIBRATE_FUNC_TSSI		9
+#define	MT7610_MCU_CALIBRATE_FUNC_TSSI_COMP	10
+#define	MT7610_MCU_CALIBRATE_FUNC_DPD		11
+#define	MT7610_MCU_CALIBRATE_FUNC_RXIQC_FI	12
+#define	MT7610_MCU_CALIBRATE_FUNC_RXIQC_FD	13
+#define	MT7610_MCU_CALIBRATE_FUNC_PWRON		14
+#define	MT7610_MCU_CALIBRATE_FUNC_TX_SHAPING	15
+
+/**
+ * calibrate
+ * id - little endian
+ * value - little endian
+ */
+struct mtwn_mt7610_mcu_calibrate_msg {
+	uint32_t func;		/* function id above */
+	uint32_t value;
+};
+
 /* XXX Registers - are these inside the MCU? */
 
 #define	MT76_REG_MCU_COM_REG0			0x0730
