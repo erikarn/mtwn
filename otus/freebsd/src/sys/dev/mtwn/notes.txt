@@ -85,3 +85,48 @@ mt76x0_phy_init()
 	- mt76x02_phy_set_rxpath()
 	- mt76x02_phy_set_txdac()
 
+===
+
+The mt76 VAP creation / deletion paths:
+
+===
+
+The mt76 node (WCID) add/removal/update paths:
+
+===
+
+The PHY/MAC/etc start path:
+
+===
+
+The PHY/mac/etc stop path:
+
+===
+
+The channel change path:
+
+===
+
+What's required for bringing up monitor mode VAP:
+
+===
+
+What's required for bringing up a STA mode VAP doing scan only:
+
+===
+
+What's required for bringing up a STA mode VAP:
+
+===
+
+What's required for bringing up a hostap mode VAP:
+
+===
+
+What's required for bringing up an IBSS mode VAP:
+
+===
+
+What's required for STA + AP concurrent VAPs:
+
+===
