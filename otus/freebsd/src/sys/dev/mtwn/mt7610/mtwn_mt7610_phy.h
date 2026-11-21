@@ -21,5 +21,7 @@ extern	int mtwn_mt7610_phy_rf_init(struct mtwn_softc *);
 extern	int mtwn_mt7610_phy_set_rxpath(struct mtwn_softc *);
 extern	int mtwn_mt7610_phy_set_txdac(struct mtwn_softc *);
 extern	int mtwn_mt7610_phy_init(struct mtwn_softc *);
+extern	int mtwn_mt7610_phy_read_rx_gain(struct mtwn_softc *,
+    const struct ieee80211_channel *);
 
 #endif	/* __MTWN_MT7610_PHY_H__ */

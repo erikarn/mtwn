@@ -16,6 +16,16 @@
 #ifndef	__MTWN_MT7610_EEPROM_H__
 #define	__MTWN_MT7610_EEPROM_H__
 
+typedef enum {
+	MTWN_MT7610_EEPROM_CAL_CHANNEL_GROUP_5G_JAPAN = 0,
+	MTWN_MT7610_EEPROM_CAL_CHANNEL_GROUP_5G_UNII_1,
+	MTWN_MT7610_EEPROM_CAL_CHANNEL_GROUP_5G_UNII_2,
+	MTWN_MT7610_EEPROM_CAL_CHANNEL_GROUP_5G_UNII_2E_1,
+	MTWN_MT7610_EEPROM_CAL_CHANNEL_GROUP_5G_UNII_2E_2,
+	MTWN_MT7610_EEPROM_CAL_CHANNEL_GROUP_5G_UNII_3,
+	MTWN_MT7610_EEPROM_CAL_CHANNEL_GROUP_5G_UNII_NUM
+} mtwn_mt7610_eeprom_cal_channel_group_t;
+
 extern	int mtwn_mt7610_efuse_read(struct mtwn_softc *, uint16_t,
 	    char *, uint32_t);
 extern	int mtwn_mt7610_efuse_read_range(struct mtwn_softc *, uint16_t,
@@ -33,5 +43,18 @@ extern	int32_t mtwn_mt7610_eeprom_field_sign_extend(struct mtwn_softc *,
 extern	int32_t
 	    mtwn_mt7610_eeprom_field_sign_extend_optional(struct mtwn_softc *,
 	    uint32_t, uint32_t);
+
+extern	mtwn_mt7610_eeprom_cal_channel_group_t
+	    mtwn_mt7610_eeprom_get_cal_channel_group(
+	      const struct ieee80211_channel *);
+extern	uint8_t mtwn_mt7610_eeprom_get_5g_rx_gain(struct mtwn_softc *,
+	    const struct ieee80211_channel *);
+extern	void mtwn_mt7610_eeprom_get_rx_gain_group(struct mtwn_softc *, uint8_t,
+	    int8_t *);
+extern	int mtwn_mt7610_eeprom_get_rx_gain(struct mtwn_softc *,
+	    const struct ieee80211_channel *, uint16_t *, int8_t *, int8_t *);
+
+extern	uint8_t mtwn_mt7610_get_lna_gain(struct mtwn_softc *, int8_t *,
+	    int8_t *, const struct ieee80211_channel *);
 
 #endif	/* __MTWN_MT7610_EEPROM_H__ */

@@ -307,3 +307,148 @@ mtwn_mt7610_eeprom_field_sign_extend_optional(struct mtwn_softc *sc,
 	return (enable ? mtwn_mt7610_eeprom_field_sign_extend(sc, val, size)
 	    : 0);
 }
+
+/**
+ * @brief Get the channel group for the given channel.
+ *
+ * Note: The mt76 driver does this based on the primary channel in the
+ * mac/nl80211 channel representation (chan->hw_value), rather than
+ * the true centre channel "number" for 40/80MHz wide channels.
+ */
+mtwn_mt7610_eeprom_cal_channel_group_t
+mtwn_mt7610_eeprom_get_cal_channel_group(const struct ieee80211_channel *c)
+{
+	/* XXX TODO: verify c->ic_ieee matches the mt76 hw_value channel */
+	if (c->ic_ieee >= 184 && c->ic_ieee <= 196)
+		return MTWN_MT7610_EEPROM_CAL_CHANNEL_GROUP_5G_JAPAN;
+	if (c->ic_ieee <= 48)
+		return MTWN_MT7610_EEPROM_CAL_CHANNEL_GROUP_5G_UNII_1;
+	if (c->ic_ieee <= 64)
+		return MTWN_MT7610_EEPROM_CAL_CHANNEL_GROUP_5G_UNII_2;
+	if (c->ic_ieee <= 114)
+		return MTWN_MT7610_EEPROM_CAL_CHANNEL_GROUP_5G_UNII_2E_1;
+	if (c->ic_ieee <= 144)
+		return MTWN_MT7610_EEPROM_CAL_CHANNEL_GROUP_5G_UNII_2E_2;
+	return MTWN_MT7610_EEPROM_CAL_CHANNEL_GROUP_5G_UNII_3;
+}
+
+/**
+ * @brief Get the relevant calibration information for a 5G channel.
+ *
+ * Note: The mt76 driver does this based on the primary channel in the
+ * mac/nl80211 channel representation (chan->hw_value), rather than
+ * the true centre channel "number" for 40/80MHz wide channels.
+ */
+uint8_t
+mtwn_mt7610_eeprom_get_5g_rx_gain(struct mtwn_softc *sc,
+    const struct ieee80211_channel *c)
+{
+	mtwn_mt7610_eeprom_cal_channel_group_t group;
+
+	group = mtwn_mt7610_eeprom_get_cal_channel_group(c);
+
+	MTWN_TODO_PRINTF(sc,
+	    "%s: Turn these into one byte EEPROM field reads?\n", __func__);
+
+	switch (group) {
+	case MTWN_MT7610_EEPROM_CAL_CHANNEL_GROUP_5G_JAPAN:
+		return MTWN_EEPROM_READ_2(sc,
+		    MT7610_EEPROM_RF_5G_GRP0_1_RX_HIGH_GAIN);
+
+	case MTWN_MT7610_EEPROM_CAL_CHANNEL_GROUP_5G_UNII_1:
+		return MTWN_EEPROM_READ_2(sc,
+		    MT7610_EEPROM_RF_5G_GRP0_1_RX_HIGH_GAIN) >> 8;
+
+	case MTWN_MT7610_EEPROM_CAL_CHANNEL_GROUP_5G_UNII_2:
+		return MTWN_EEPROM_READ_2(sc,
+		    MT7610_EEPROM_RF_5G_GRP2_3_RX_HIGH_GAIN);
+
+	case MTWN_MT7610_EEPROM_CAL_CHANNEL_GROUP_5G_UNII_2E_1:
+		return MTWN_EEPROM_READ_2(sc,
+		    MT7610_EEPROM_RF_5G_GRP2_3_RX_HIGH_GAIN) >> 8;
+
+	case MTWN_MT7610_EEPROM_CAL_CHANNEL_GROUP_5G_UNII_2E_2:
+		return MTWN_EEPROM_READ_2(sc,
+		    MT7610_EEPROM_RF_5G_GRP4_5_RX_HIGH_GAIN);
+
+	default:
+		return MTWN_EEPROM_READ_2(sc,
+		    MT7610_EEPROM_RF_5G_GRP4_5_RX_HIGH_GAIN) >> 8;
+	}
+
+	return (0);
+}
+
+/**
+ * @brief Return the RX gain group to use based on the provided value.
+ */
+void
+mtwn_mt7610_eeprom_get_rx_gain_group(struct mtwn_softc *sc, uint8_t val,
+    int8_t *dest)
+{
+	if (mtwn_mt7610_eeprom_field_valid_1(sc, val) == false) {
+		dest[0] = dest[1] = 0;
+		return;
+	}
+
+	dest[0] = mtwn_mt7610_eeprom_field_sign_extend(sc, val, 4);
+	dest[1] = mtwn_mt7610_eeprom_field_sign_extend(sc, val >> 4, 4);
+}
+
+int
+mtwn_mt7610_eeprom_get_rx_gain(struct mtwn_softc *sc,
+    const struct ieee80211_channel *c, uint16_t *rssi_offset,
+    int8_t *lna_2g, int8_t *lna_5g)
+{
+	uint16_t val;
+
+	/* TODO: figure out how to just do 1 byte reads here for each field? */
+
+	/* Fetch LNA gain */
+	val = MTWN_EEPROM_READ_2(sc, MT7610_EEPROM_LNA_GAIN);
+	*lna_2g = val & 0xff;
+
+	/* Extract 5g gain from high byte from LNA gain parameter */
+	lna_5g[0] = val >> 8;
+
+	/* Fetch 2g/5g gain */
+	val = MTWN_EEPROM_READ_2(sc, MT7610_EEPROM_RSSI_OFFSET_2G_1);
+	lna_5g[1] = val >> 8;
+
+	val = MTWN_EEPROM_READ_2(sc, MT7610_EEPROM_RSSI_OFFSET_5G_1);
+	lna_5g[2] = val >> 8;
+
+	/* Verify they're valid */
+	if (!mtwn_mt7610_eeprom_field_valid_1(sc, lna_5g[1]))
+		lna_5g[1] = lna_5g[0];
+	if (!mtwn_mt7610_eeprom_field_valid_1(sc, lna_5g[2]))
+		lna_5g[2] = lna_5g[0];
+
+	/* Fetch gain/rssi offset */
+	if (IEEE80211_IS_CHAN_2GHZ(c))
+		*rssi_offset = MTWN_EEPROM_READ_2(sc,
+		    MT7610_EEPROM_RSSI_OFFSET_2G_0);
+	else
+		*rssi_offset = MTWN_EEPROM_READ_2(sc,
+		    MT7610_EEPROM_RSSI_OFFSET_2G_1);
+
+	return (0);
+}
+
+uint8_t
+mtwn_mt7610_get_lna_gain(struct mtwn_softc *sc, int8_t *lna_2g, int8_t *lna_5g,
+    const struct ieee80211_channel *c)
+{
+	uint8_t lna;
+
+	if (IEEE80211_IS_CHAN_2GHZ(c))
+		lna = *lna_2g;
+	else if (c->ic_ieee <= 64)
+		lna = lna_5g[0];
+	else if (c->ic_ieee <= 128)
+		lna = lna_5g[1];
+	else
+		lna = lna_5g[2];
+
+	return (lna != 0xff) ? lna : 0;
+}

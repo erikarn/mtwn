@@ -63,6 +63,7 @@
 #include "mtwn_mt7610_mac.h"
 #include "mtwn_mt7610_mcu_reg.h" /* for MT7610_MCU_MEMMAP_WLAN */
 #include "mtwn_mt7610_eeprom_reg.h" /* for EEPROM defs */
+#include "mtwn_mt7610_eeprom.h"
 
 #include "mtwn_mt7610_var.h"
 #include "mtwn_mt7610_phy_reg.h"
@@ -385,3 +386,77 @@ mtwn_mt7610_phy_init(struct mtwn_softc *sc)
 	return (0);
 }
 
+/**
+ * @brief Update the RSSI value in the RX calibration field.
+ */
+static void
+mtwn_mt7610_set_rssi_offset(struct mtwn_softc *sc, int chain, uint8_t val)
+{
+	struct mtwn_mt7610_chip_priv *psc = MTWN_MT7610_CHIP_SOFTC(sc);
+
+	if (mtwn_mt7610_eeprom_field_valid_1(sc, val))
+		psc->rx_freq_cal.rssi_offset[chain] =
+		    mtwn_mt7610_eeprom_field_sign_extend_optional(sc, val, 7);
+	else
+		psc->rx_freq_cal.rssi_offset[chain] = 0;
+}
+
+/**
+ * @brief Update the RX gain information for the given channel from EEPROM
+ *
+ * Read the EEPROM RX gain and program in the RX gain, RSSI offset and
+ * LNA settings for the provided channel.
+ *
+ * This is based off of mt76x2_read_rx_gain() in the mt76 driver.
+ */
+int
+mtwn_mt7610_phy_read_rx_gain(struct mtwn_softc *sc,
+    const struct ieee80211_channel *c)
+{
+	struct mtwn_mt7610_chip_priv *psc = MTWN_MT7610_CHIP_SOFTC(sc);
+	bool use_lna;
+	uint16_t val;
+	uint8_t lna = 0;
+	int8_t lna_5g[3], lna_2g;
+
+	MTWN_TODO_PRINTF(sc, "%s: TODO!\n", __func__);
+
+	/* Read 2g or 5x RX gain */
+	if (IEEE80211_IS_CHAN_2GHZ(c))
+		val = MTWN_EEPROM_READ_2(sc, MT7610_EEPROM_RF_2G_RX_HIGH_GAIN);
+	else
+		val = mtwn_mt7610_eeprom_get_5g_rx_gain(sc, c);
+
+	/* set rx gain group */
+	/* TODO: Note: this only uses the low 8 bits of the provided val */
+	mtwn_mt7610_eeprom_get_rx_gain_group(sc, val,
+	    psc->rx_freq_cal.high_gain);
+
+	/* get rx gain */
+	mtwn_mt7610_eeprom_get_rx_gain(sc, c, &val, &lna_2g, lna_5g);
+
+	/* set rssi offset */
+	mtwn_mt7610_set_rssi_offset(sc, 0, val);
+	mtwn_mt7610_set_rssi_offset(sc, 1, val >> 8);
+
+	/* populate MCU gain based on LNA configs */
+	psc->rx_freq_cal.mcu_gain = (lna_2g & 0xff);
+	psc->rx_freq_cal.mcu_gain |= (lna_5g[0] & 0xff) << 8;
+	psc->rx_freq_cal.mcu_gain |= (lna_5g[1] & 0xff) << 16;
+	psc->rx_freq_cal.mcu_gain |= (lna_5g[2] & 0xff) << 24;
+
+	/* Get LNA gain if required */
+	val = MTWN_EEPROM_READ_2(sc, MT7610_EEPROM_NIC_CONF_1);
+	if (IEEE80211_IS_CHAN_2GHZ(c)) {
+		use_lna = ! (val & MT7610_EEPROM_NIC_CONF_1_LNA_EXT_2G);
+	} else
+		use_lna = ! (val & MT7610_EEPROM_NIC_CONF_1_LNA_EXT_5G);
+
+	if (use_lna)
+		lna = mtwn_mt7610_get_lna_gain(sc, &lna_2g, lna_5g, c);
+
+	psc->rx_freq_cal.lna_gain =
+	    mtwn_mt7610_eeprom_field_sign_extend(sc, lna, 8);
+
+	return (0);
+}

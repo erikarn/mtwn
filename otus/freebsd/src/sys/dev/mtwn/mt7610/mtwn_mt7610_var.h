@@ -20,7 +20,7 @@ struct mtwn_mt7610_rx_freq_cal {
 	int8_t high_gain[MTWN_MAX_CHAINS];
 	int8_t rssi_offset[MTWN_MAX_CHAINS];
 	int8_t lna_gain;
-	uint8_t mcu_gain;
+	uint32_t mcu_gain;
 	int16_t temp_offset;
 	uint8_t freq_offset;
 };
