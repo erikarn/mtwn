@@ -11,6 +11,15 @@ Date:   Tue Apr 8 17:16:43 2025 -0700
 
 ===
 
+NOTE:
+
+* The MT7610U USB device I have is an MT7610U, not an MT7612U!
+* Ie, be careful - there's mt76x02 routines which look like they're
+  for both, BUT there are then mt76x0 and mt76x2 routines and
+  I need to use the mt76x0 ones!
+
+===
+
 The mt7610u attach path:
 
 mt76x0u_probe()

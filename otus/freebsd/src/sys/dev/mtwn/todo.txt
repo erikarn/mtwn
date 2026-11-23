@@ -148,21 +148,29 @@ Channel programming
 
 Start
 
-mt76x2u_start():
+mt76x0u_start():
 
-  - update MT76_STATE_RUNNING state bit
+  - call mt76x02u_mac_start
+  - call mt76x0_phy_calibrate
   - schedule mac_work to start
+  - schedule cal_work to start
+  - mark MT76_STATE_RUNNING
+
   - mt76x02_mac_work() does the work
     - this is grabbing aggregate stats, check mac err, tx status check
     - requeue delayed work
 
 * Is there a start_tx() that I'm missing here?
 
-mt76x2u_stop():
+mt76x0u_stop():
 
   - update MT76_STATE_RUNNING state bit
+  - cancel delayed work
   - mt76u_stop_tx()
-  - mt76x2u_stop_hw()
+  - mt76x02u_exit_beacon_config()
+  - check if TX DMA stopped
+  - mt76x0_mac_stop
+  - check if RX DMA stopped
 
 When is mt76x02u_mac_start() called? Shit I need to port this.
 
@@ -170,7 +178,7 @@ When is mt76x02u_mac_start() called? Shit I need to port this.
 
 Config
 
-* mt76x2u_config()
+* mt76x0_config()
   - this handles enable/disable monitor mode rx filter
   - and changing txpower
   - and update channel
