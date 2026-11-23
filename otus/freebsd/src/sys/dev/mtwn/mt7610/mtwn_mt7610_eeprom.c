@@ -314,9 +314,11 @@ mtwn_mt7610_eeprom_field_sign_extend_optional(struct mtwn_softc *sc,
  * Note: The mt76 driver does this based on the primary channel in the
  * mac/nl80211 channel representation (chan->hw_value), rather than
  * the true centre channel "number" for 40/80MHz wide channels.
+ *
+ * Note: this is based on mt76x2 .
  */
 mtwn_mt7610_eeprom_cal_channel_group_t
-mtwn_mt7610_eeprom_get_cal_channel_group(const struct ieee80211_channel *c)
+mtwn_mt7612_eeprom_get_cal_channel_group(const struct ieee80211_channel *c)
 {
 	/* XXX TODO: verify c->ic_ieee matches the mt76 hw_value channel */
 	if (c->ic_ieee >= 184 && c->ic_ieee <= 196)
@@ -338,14 +340,16 @@ mtwn_mt7610_eeprom_get_cal_channel_group(const struct ieee80211_channel *c)
  * Note: The mt76 driver does this based on the primary channel in the
  * mac/nl80211 channel representation (chan->hw_value), rather than
  * the true centre channel "number" for 40/80MHz wide channels.
+ *
+ * Note: this is based on mt76x2.
  */
 uint8_t
-mtwn_mt7610_eeprom_get_5g_rx_gain(struct mtwn_softc *sc,
+mtwn_mt7612_eeprom_get_5g_rx_gain(struct mtwn_softc *sc,
     const struct ieee80211_channel *c)
 {
 	mtwn_mt7610_eeprom_cal_channel_group_t group;
 
-	group = mtwn_mt7610_eeprom_get_cal_channel_group(c);
+	group = mtwn_mt7612_eeprom_get_cal_channel_group(c);
 
 	MTWN_TODO_PRINTF(sc,
 	    "%s: Turn these into one byte EEPROM field reads?\n", __func__);
@@ -451,4 +455,17 @@ mtwn_mt7610_get_lna_gain(struct mtwn_softc *sc, int8_t *lna_2g, int8_t *lna_5g,
 		lna = lna_5g[2];
 
 	return (lna != 0xff) ? lna : 0;
+}
+
+bool
+mtwn_mt7610_ext_pa_enabled(struct mtwn_softc *sc,
+    const struct ieee80211_channel *c)
+{
+	uint16_t conf_0;
+
+	conf_0 = MTWN_EEPROM_READ_2(sc, MT7610_EEPROM_NIC_CONF_0);
+	if (IEEE80211_IS_CHAN_2GHZ(c))
+		return !(conf_0 & MT7610_EEPROM_NIC_CONF_0_PA_INT_VAL_2G);
+	else
+		return !(conf_0 & MT7610_EEPROM_NIC_CONF_0_PA_INT_VAL_5G);
 }

@@ -441,4 +441,8 @@ extern	int mtwn_firmware_load(struct mtwn_softc *);
 extern	struct mbuf * mtwn_mcu_msg_alloc(struct mtwn_softc *,
 	    const char *, int, int);
 
+/* Not sure where this belongs right now */
+
+#define	MTWN_CHANNEL_TO_HW_VALUE(c)	((c)->ic_ieee)
+
 #endif	/* __IF_MTWN_VAR_H__ */

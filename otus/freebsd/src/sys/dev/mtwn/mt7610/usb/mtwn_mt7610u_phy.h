@@ -16,10 +16,5 @@
 #ifndef	__MTWN_MT7610U_PHY_H__
 #define	__MTWN_MT7610U_PHY_H__
 
-int	mtwn_mt7610u_phy_channel_calibrate(struct mtwn_softc *sc,
-	    bool mac_stopped);
-int	mtwn_mt7610u_phy_calibrate(struct mtwn_softc *sc);
-int	mtwn_mt7610u_set_channel(struct mtwn_softc *sc,
-	    const struct ieee80211_channel *chan);
 
 #endif	/* __MTWN_MT7610U_PHY_H__ */

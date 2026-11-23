@@ -22,6 +22,28 @@ extern	int mtwn_mt7610_phy_set_rxpath(struct mtwn_softc *);
 extern	int mtwn_mt7610_phy_set_txdac(struct mtwn_softc *);
 extern	int mtwn_mt7610_phy_init(struct mtwn_softc *);
 extern	int mtwn_mt7610_phy_read_rx_gain(struct mtwn_softc *,
+	    const struct ieee80211_channel *);
+extern	int mtwn_mt7612_phy_read_rx_gain(struct mtwn_softc *,
+	    const struct ieee80211_channel *);
+extern	int mtwn_mt7612_phy_set_txpower_regs(struct mtwn_softc *,
+	    const struct ieee80211_channel *);
+extern	int mtwn_mt7612_configure_tx_delay(struct mtwn_softc *,
+    const struct ieee80211_channel *, uint8_t);
+extern	int mtwn_mt7610_phy_set_bw(struct mtwn_softc *, int, uint8_t);
+extern	int mtwn_mt7610_phy_bbp_set_bw(struct mtwn_softc *, int);
+extern	int mtwn_mt7610_phy_set_band(struct mtwn_softc *,
+	    const struct ieee80211_channel *);
+extern	int mtwn_mt7610_phy_set_rf_band(struct mtwn_softc *,
+	    const struct ieee80211_channel *);
+extern	int mtwn_mt7610_phy_set_chan_rf_params(struct mtwn_softc *,
+	    const struct ieee80211_channel *, uint16_t);
+extern	int mtwn_mt7610_phy_get_txpower(struct mtwn_softc *,
     const struct ieee80211_channel *);
+extern	int mtwn_mt7610_phy_write_txpower(struct mtwn_softc *, int, int);
+
+int	mtwn_mt7610_phy_channel_calibrate(struct mtwn_softc *sc,
+	    bool power_on);
+int	mtwn_mt7610_set_channel(struct mtwn_softc *sc,
+	    const struct ieee80211_channel *chan);
 
 #endif	/* __MTWN_MT7610_PHY_H__ */

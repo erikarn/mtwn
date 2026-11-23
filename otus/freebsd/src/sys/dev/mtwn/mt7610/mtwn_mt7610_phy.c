@@ -68,6 +68,8 @@
 #include "mtwn_mt7610_var.h"
 #include "mtwn_mt7610_phy_reg.h"
 #include "mtwn_mt7610_phy.h"
+#include "mtwn_mt7610_mcu.h"
+#include "mtwn_mt7610_bbp.h"
 
 #include "mtwn_mt7610_phy_initvals.h"
 
@@ -388,9 +390,11 @@ mtwn_mt7610_phy_init(struct mtwn_softc *sc)
 
 /**
  * @brief Update the RSSI value in the RX calibration field.
+ *
+ * This is based on mt76x2_set_rssi_offset().
  */
 static void
-mtwn_mt7610_set_rssi_offset(struct mtwn_softc *sc, int chain, uint8_t val)
+mtwn_mt7612_set_rssi_offset(struct mtwn_softc *sc, int chain, uint8_t val)
 {
 	struct mtwn_mt7610_chip_priv *psc = MTWN_MT7610_CHIP_SOFTC(sc);
 
@@ -408,9 +412,12 @@ mtwn_mt7610_set_rssi_offset(struct mtwn_softc *sc, int chain, uint8_t val)
  * LNA settings for the provided channel.
  *
  * This is based off of mt76x2_read_rx_gain() in the mt76 driver.
+ *
+ * XXX TODO: this may be the wrong one, I need to port the mt76x0
+ * one, not the mt76x2 one!
  */
 int
-mtwn_mt7610_phy_read_rx_gain(struct mtwn_softc *sc,
+mtwn_mt7612_phy_read_rx_gain(struct mtwn_softc *sc,
     const struct ieee80211_channel *c)
 {
 	struct mtwn_mt7610_chip_priv *psc = MTWN_MT7610_CHIP_SOFTC(sc);
@@ -425,7 +432,7 @@ mtwn_mt7610_phy_read_rx_gain(struct mtwn_softc *sc,
 	if (IEEE80211_IS_CHAN_2GHZ(c))
 		val = MTWN_EEPROM_READ_2(sc, MT7610_EEPROM_RF_2G_RX_HIGH_GAIN);
 	else
-		val = mtwn_mt7610_eeprom_get_5g_rx_gain(sc, c);
+		val = mtwn_mt7612_eeprom_get_5g_rx_gain(sc, c);
 
 	/* set rx gain group */
 	/* TODO: Note: this only uses the low 8 bits of the provided val */
@@ -436,8 +443,8 @@ mtwn_mt7610_phy_read_rx_gain(struct mtwn_softc *sc,
 	mtwn_mt7610_eeprom_get_rx_gain(sc, c, &val, &lna_2g, lna_5g);
 
 	/* set rssi offset */
-	mtwn_mt7610_set_rssi_offset(sc, 0, val);
-	mtwn_mt7610_set_rssi_offset(sc, 1, val >> 8);
+	mtwn_mt7612_set_rssi_offset(sc, 0, val);
+	mtwn_mt7612_set_rssi_offset(sc, 1, val >> 8);
 
 	/* populate MCU gain based on LNA configs */
 	psc->rx_freq_cal.mcu_gain = (lna_2g & 0xff);
@@ -459,4 +466,588 @@ mtwn_mt7610_phy_read_rx_gain(struct mtwn_softc *sc,
 	    mtwn_mt7610_eeprom_field_sign_extend(sc, lna, 8);
 
 	return (0);
+}
+
+/**
+ * @brief Read the RX gain table from EEPROM and calculate offsets.
+ *
+ * This is based on mt76x0_read_rx_gain() .
+ */
+int
+mtwn_mt7610_phy_read_rx_gain(struct mtwn_softc *sc,
+    const struct ieee80211_channel *c)
+{
+	struct mtwn_mt7610_chip_priv *psc = MTWN_MT7610_CHIP_SOFTC(sc);
+	int i;
+	uint16_t rssi_offset;
+	int8_t val, lna_5g[3], lna_2g;
+
+	/* get rx gain */
+	mtwn_mt7610_eeprom_get_rx_gain(sc, c, &rssi_offset, &lna_2g, lna_5g);
+	psc->rx_freq_cal.lna_gain = mtwn_mt7610_get_lna_gain(sc, &lna_2g,
+	    lna_5g, c);
+
+
+	/* offset and clamp */
+	for (i = 0; i < nitems(psc->rx_freq_cal.rssi_offset); i++) {
+		val = rssi_offset >> (8 * i);
+		if (val < -10 || val > 10)
+			val = 0;
+		psc->rx_freq_cal.rssi_offset[i] = val;
+	}
+
+	return (0);
+}
+
+/**
+ * @brief Set the tx power / PA configuration
+ *
+ * This is based on mt76x2_phy_set_txpower_regs().
+ *
+ * XXX TODO: this may be the wrong one, I need to port the mt76x0
+ * one, not the mt76x2 one!
+ */
+int
+mtwn_mt7612_phy_set_txpower_regs(struct mtwn_softc *sc,
+    const struct ieee80211_channel *c)
+{
+	uint32_t pa_mode[2];
+	uint32_t pa_mode_adj;
+
+	if (IEEE80211_IS_CHAN_2GHZ(c)) {
+		pa_mode[0] = 0x010055ff;
+		pa_mode[1] = 0x00550055;
+
+		MTWN_REG_WRITE_4(sc, MT7610_REG_TX_ALC_CFG_2, 0x35160a00);
+		MTWN_REG_WRITE_4(sc, MT7610_REG_TX_ALC_CFG_3, 0x35160a06);
+
+		if (mtwn_mt7610_ext_pa_enabled(sc, c)) {
+			MTWN_REG_WRITE_4(sc, MT7610_REG_RF_PA_MODE_ADJ0,
+			    0x0000ec00);
+			MTWN_REG_WRITE_4(sc, MT7610_REG_RF_PA_MODE_ADJ1,
+			    0x0000ec00);
+		} else {
+			MTWN_REG_WRITE_4(sc, MT7610_REG_RF_PA_MODE_ADJ0,
+			    0xf4000200);
+			MTWN_REG_WRITE_4(sc, MT7610_REG_RF_PA_MODE_ADJ1,
+			    0xfa000200);
+		}
+	} else {
+		pa_mode[0] = 0x0000ffff;
+		pa_mode[1] = 0x00ff00ff;
+
+		if (mtwn_mt7610_ext_pa_enabled(sc, c))
+			pa_mode_adj = 0x0f000000;
+		else
+			pa_mode_adj = 0;
+
+		MTWN_REG_WRITE_4(sc, MT7610_REG_RF_PA_MODE_ADJ0, pa_mode_adj);
+		MTWN_REG_WRITE_4(sc, MT7610_REG_RF_PA_MODE_ADJ1, pa_mode_adj);
+	}
+
+	/* Write pa mode */
+	MTWN_REG_WRITE_4(sc, MT7610_REG_BB_PA_MODE_CFG0, pa_mode[0]);
+	MTWN_REG_WRITE_4(sc, MT7610_REG_BB_PA_MODE_CFG1, pa_mode[1]);
+	MTWN_REG_WRITE_4(sc, MT7610_REG_RF_PA_MODE_CFG0, pa_mode[0]);
+	MTWN_REG_WRITE_4(sc, MT7610_REG_RF_PA_MODE_CFG1, pa_mode[1]);
+
+	if (mtwn_mt7610_ext_pa_enabled(sc, c)) {
+		uint32_t val;
+
+		if (IEEE80211_IS_CHAN_2GHZ(c))
+			val = 0x3c3c023c;
+		else
+			val = 0x363c023c;
+
+		MTWN_REG_WRITE_4(sc, MT7610_REG_TX0_RF_GAIN_CORR, val);
+		MTWN_REG_WRITE_4(sc, MT7610_REG_TX1_RF_GAIN_CORR, val);
+		MTWN_REG_WRITE_4(sc, MT7610_REG_TX_ALC_CFG_4, 0x00001818);
+	} else {
+
+		if (IEEE80211_IS_CHAN_2GHZ(c)) {
+			uint32_t val = 0x0f3c3c3c;
+
+			MTWN_REG_WRITE_4(sc, MT7610_REG_TX0_RF_GAIN_CORR, val);
+			MTWN_REG_WRITE_4(sc, MT7610_REG_TX1_RF_GAIN_CORR, val);
+			MTWN_REG_WRITE_4(sc, MT7610_REG_TX_ALC_CFG_4,
+			    0x00000606);
+		} else {
+			MTWN_REG_WRITE_4(sc, MT7610_REG_TX0_RF_GAIN_CORR,
+			    0x383c023c);
+			MTWN_REG_WRITE_4(sc, MT7610_REG_TX1_RF_GAIN_CORR,
+			    0x24282e28);
+			MTWN_REG_WRITE_4(sc, MT7610_REG_TX_ALC_CFG_4, 0);
+		}
+	}
+
+	return (0);
+}
+
+/**
+ * @brief Configure TX delay
+ *
+ * This configures both RX/TX delay and SIFS timing.
+ *
+ * @param bw 0 - 20MHz; 1 - 40MHz; 2 - 80MHz
+ *
+ * This is based on mt76x2_configure_tx_delay()
+ *
+ * XXX TODO: this may be the wrong one, I need to port the mt76x0
+ * one, not the mt76x2 one!
+ */
+int
+mtwn_mt7612_configure_tx_delay(struct mtwn_softc *sc,
+    const struct ieee80211_channel *c, uint8_t bw)
+{
+	uint32_t cfg_0, cfg_1;
+
+	if (mtwn_mt7610_ext_pa_enabled(sc, c)) {
+		cfg_0 = bw ? 0x000b0c01 : 0x00101101;
+		cfg_1 = 0x00011414;
+	} else {
+		cfg_0 = bw ? 0x000b0b01 : 0x00101001;
+		cfg_1 = 0x00021414;
+	}
+
+	MTWN_REG_WRITE_4(sc, MT7610_REG_TX_SW_CFG0, cfg_0);
+	MTWN_REG_WRITE_4(sc, MT7610_REG_TX_SW_CFG1, cfg_1);
+
+	MTWN_REG_RMW_4(sc, MT7610_REG_XIFS_TIME_CFG,
+	    MT7610_REG_XIFS_TIME_CFG_OFDM_SIFS, 15);
+
+	return (0);
+}
+
+/**
+ * @brief Calculate the TX power mask for the given four TX power targets.
+ *
+ * This is based on mt76x02_tx_power_mask() .
+ */
+static uint32_t
+mtwn_mt7610_calc_tx_power_mask(uint8_t v1, uint8_t v2, uint8_t v3, uint8_t v4)
+{
+	uint32_t val = 0;
+
+	val |= (v1 & 0x3f) << 0;
+	val |= (v2 & 0x3f) << 8;
+	val |= (v3 & 0x3f) << 16;
+	val |= (v4 & 0x3f) << 24;
+
+	return (val);
+}
+
+/**
+ * @brief Write the TX power array into the PHY.
+ *
+ * This writes the rate_power, txp_0, txp_1 values into the
+ * PHY.
+ *
+ * This is based on mt76x02_phy_set_txpower() .
+ */
+int
+mtwn_mt7610_phy_write_txpower(struct mtwn_softc *sc, int txp_0, int txp_1)
+{
+	const struct mtwn_mt7610_chip_priv *psc = MTWN_MT7610_CHIP_SOFTC(sc);
+	const struct mtwn_mt7610_rate_power *t = &psc->rate_power;
+
+	MTWN_REG_RMW_4(sc, MT7610_REG_TX_ALC_CFG_0,
+	    MT7610_REG_TX_ALC_CFG_0_CH_INIT_0, txp_0);
+	MTWN_REG_RMW_4(sc, MT7610_REG_TX_ALC_CFG_0,
+	    MT7610_REG_TX_ALC_CFG_0_CH_INIT_1, txp_1);
+
+	MTWN_REG_WRITE_4(sc, MT7610_REG_TX_PWR_CFG_0,
+	    mtwn_mt7610_calc_tx_power_mask(t->cck[0], t->cck[2], t->ofdm[0],
+	    t->ofdm[2]));
+
+	MTWN_REG_WRITE_4(sc, MT7610_REG_TX_PWR_CFG_1,
+	    mtwn_mt7610_calc_tx_power_mask(t->ofdm[4], t->ofdm[6], t->ht[0],
+	    t->ht[2]));
+
+	MTWN_REG_WRITE_4(sc, MT7610_REG_TX_PWR_CFG_2,
+	    mtwn_mt7610_calc_tx_power_mask(t->ht[4], t->ht[6], t->ht[8],
+	    t->ht[10]));
+
+	MTWN_REG_WRITE_4(sc, MT7610_REG_TX_PWR_CFG_3,
+	    mtwn_mt7610_calc_tx_power_mask(t->ht[12], t->ht[14], t->ht[0],
+	    t->ht[2]));
+
+	MTWN_REG_WRITE_4(sc, MT7610_REG_TX_PWR_CFG_4,
+	    mtwn_mt7610_calc_tx_power_mask(t->ht[4], t->ht[6], 0, 0));
+
+	MTWN_REG_WRITE_4(sc, MT7610_REG_TX_PWR_CFG_7,
+	    mtwn_mt7610_calc_tx_power_mask(t->ofdm[7], t->vht[0], t->ht[7],
+	    t->vht[1]));
+
+	MTWN_REG_WRITE_4(sc, MT7610_REG_TX_PWR_CFG_8,
+	    mtwn_mt7610_calc_tx_power_mask(t->ht[14], 0, t->vht[0],
+	    t->vht[1]));
+
+	MTWN_REG_WRITE_4(sc, MT7610_REG_TX_PWR_CFG_9,
+	    mtwn_mt7610_calc_tx_power_mask(t->ht[7], 0, t->vht[0],
+	    t->vht[1]));
+
+	return (0);
+}
+
+/**
+ * @brief Calculate the TX power values to program in via set_txpower
+ *
+ * This is based on mt76x0_phy_set_txpower() .
+ */
+int
+mtwn_mt7610_phy_get_txpower(struct mtwn_softc *sc,
+    const struct ieee80211_channel *c)
+{
+
+	/* Get power info per rate */
+	/* Get power info from eeprom */
+
+	/* Add power rate offset */
+
+	/* Limit rate power */
+	/* Get global max rate power */
+	/* Save target power */
+
+	return (0);
+}
+
+int
+mtwn_mt7610_phy_set_bw(struct mtwn_softc *sc, int bw, uint8_t ctrl)
+{
+	int agc_val, core_val;
+
+	switch (bw) {
+	case 80:
+		core_val = 3;
+		agc_val = 7;
+		break;
+	case 40:
+		core_val = 2;
+		agc_val = 3;
+		break;
+	default:
+		core_val = 0;
+		agc_val = 1;
+		break;
+	}
+
+	MTWN_REG_RMW_4(sc, MT7610_REG_BBP(CORE, 1), MT7610_REG_BBP_CORE_R1_BW,
+	    core_val);
+	MTWN_REG_RMW_4(sc, MT7610_REG_BBP(AGC, 0), MT7610_REG_BBP_AGC_R0_BW,
+	    agc_val);
+	MTWN_REG_RMW_4(sc, MT7610_REG_BBP(AGC, 0),
+	    MT7610_REG_BBP_AGC_R0_CTRL_CHAN, ctrl);
+	MTWN_REG_RMW_4(sc, MT7610_REG_BBP(TXBE, 0),
+	    MT7610_REG_BBP_TXBE_R0_CTRL_CHAN, ctrl);
+
+	return (0);
+}
+
+/*
+ * based on mt76x0_phy_bbp_set_bw()
+ */
+int
+mtwn_mt7610_phy_bbp_set_bw(struct mtwn_softc *sc, int chw)
+{
+	int bw, ret;
+
+	switch (chw) {
+	case 10:
+		bw = 4;
+		break;
+	case 20:
+		bw = 0;
+		break;
+	case 40:
+		bw = 1;
+		break;
+	case 80:
+		bw = 2;
+		break;
+	default:
+		return (EINVAL);
+	}
+
+	ret = mtwn_mt7610_mcu_function_select(sc, MT7610_MCU_FUNC_BW_SETTING,
+	    bw);
+	if (ret != 0)
+		return (ret);
+
+	return (0);
+}
+
+/**
+ * @brief Program the BB/PHY band and primary upper/lower flags
+ *
+ * based on mt76x02_phy_set_band()
+ */
+int
+mtwn_mt7610_phy_set_band(struct mtwn_softc *sc,
+    const struct ieee80211_channel *c)
+{
+	int primary_upper = 0;
+
+	/* XXX TODO: this deviates from mt76; it's possible I got it wrong! */
+
+	if (IEEE80211_IS_CHAN_2GHZ(c)) {
+		MTWN_REG_SET_4(sc, MT7610_REG_TX_BAND_CFG,
+		    MT7610_REG_TX_BAND_CFG_2G);
+		MTWN_REG_CLEAR_4(sc, MT7610_REG_TX_BAND_CFG,
+		    MT7610_REG_TX_BAND_CFG_5G);
+	} else {
+		MTWN_REG_CLEAR_4(sc, MT7610_REG_TX_BAND_CFG,
+		    MT7610_REG_TX_BAND_CFG_2G);
+		MTWN_REG_SET_4(sc, MT7610_REG_TX_BAND_CFG,
+		    MT7610_REG_TX_BAND_CFG_5G);
+
+	}
+
+	if (IEEE80211_IS_CHAN_HT40D(c) || IEEE80211_IS_CHAN_VHT40D(c))
+		primary_upper = 1;
+
+	MTWN_REG_RMW_4(sc, MT7610_REG_TX_BAND_CFG,
+	    MT7610_REG_TX_BAND_CFG_UPPER_40M, primary_upper);
+
+	return (0);
+}
+
+/**
+ * @brief Set the band config for the RF side of the baseband.
+ *
+ * This is based on mt76x0_phy_set_band().
+ */
+int
+mtwn_mt7610_phy_set_rf_band(struct mtwn_softc *sc,
+    const struct ieee80211_channel *c)
+{
+	int ret;
+
+	if (IEEE80211_IS_CHAN_2GHZ(c)) {
+		ret = MTWN_RF_REG_PAIR_WRITE_4(sc,
+		    mtwn_mt761x0_rf_2g_channel_0_tab,
+		    nitems(mtwn_mt761x0_rf_2g_channel_0_tab));
+		if (ret != 0)
+			return (ret);
+
+		MTWN_RF_REG_WRITE_4(sc, MT7610_REG_RF(5, 0), 0x45);
+		MTWN_RF_REG_WRITE_4(sc, MT7610_REG_RF(6, 0), 0x44);
+
+		MTWN_REG_WRITE_4(sc, MT7610_REG_TX_ALC_VGA3, 0x00050007);
+		MTWN_REG_WRITE_4(sc, MT7610_REG_TX0_RF_GAIN_CORR, 0x003E0002);
+	} else {
+		ret = MTWN_RF_REG_PAIR_WRITE_4(sc,
+		    mtwn_mt7610_rf_5g_channel_0_tab,
+		    nitems(mtwn_mt7610_rf_5g_channel_0_tab));
+		if (ret != 0)
+			return (ret);
+
+		MTWN_RF_REG_WRITE_4(sc, MT7610_REG_RF(5, 0), 0x44);
+		MTWN_RF_REG_WRITE_4(sc, MT7610_REG_RF(6, 0), 0x45);
+
+		MTWN_REG_WRITE_4(sc, MT7610_REG_TX_ALC_VGA3, 0x00000005);
+		MTWN_REG_WRITE_4(sc, MT7610_REG_TX0_RF_GAIN_CORR, 0x01010102);
+	}
+	return (0);
+}
+
+/**
+ * @brief Program the RF frequency/configuration parameters.
+ *
+ * This is based on mt76x0_phy_set_chan_rf_params().
+ */
+int
+mtwn_mt7610_phy_set_chan_rf_params(struct mtwn_softc *sc,
+    const struct ieee80211_channel *c, uint16_t rf_bw_band)
+{
+	MTWN_TODO_PRINTF(sc, "%s: called\n", __func__);
+	return (0);
+}
+
+static uint32_t ext_cca_chan[4] = {
+	[0] = _IEEE80211_SHIFTMASK(0, MT7610_REG_EXT_CCA_CFG_CCA0) |
+	      _IEEE80211_SHIFTMASK(1, MT7610_REG_EXT_CCA_CFG_CCA1) |
+	      _IEEE80211_SHIFTMASK(2, MT7610_REG_EXT_CCA_CFG_CCA2) |
+	      _IEEE80211_SHIFTMASK(3, MT7610_REG_EXT_CCA_CFG_CCA3) |
+	      _IEEE80211_SHIFTMASK((1 << 0), MT7610_REG_EXT_CCA_CFG_CCA_MASK),
+
+	[1] = _IEEE80211_SHIFTMASK(1, MT7610_REG_EXT_CCA_CFG_CCA0) |
+	      _IEEE80211_SHIFTMASK(0, MT7610_REG_EXT_CCA_CFG_CCA1) |
+	      _IEEE80211_SHIFTMASK(2, MT7610_REG_EXT_CCA_CFG_CCA2) |
+	      _IEEE80211_SHIFTMASK(3, MT7610_REG_EXT_CCA_CFG_CCA3) |
+	      _IEEE80211_SHIFTMASK((1 << 1), MT7610_REG_EXT_CCA_CFG_CCA_MASK),
+
+	[2] = _IEEE80211_SHIFTMASK(2, MT7610_REG_EXT_CCA_CFG_CCA0) |
+	      _IEEE80211_SHIFTMASK(3, MT7610_REG_EXT_CCA_CFG_CCA1) |
+	      _IEEE80211_SHIFTMASK(1, MT7610_REG_EXT_CCA_CFG_CCA2) |
+	      _IEEE80211_SHIFTMASK(0, MT7610_REG_EXT_CCA_CFG_CCA3) |
+	      _IEEE80211_SHIFTMASK((1 << 2), MT7610_REG_EXT_CCA_CFG_CCA_MASK),
+
+	[3] = _IEEE80211_SHIFTMASK(3, MT7610_REG_EXT_CCA_CFG_CCA0) |
+	      _IEEE80211_SHIFTMASK(2, MT7610_REG_EXT_CCA_CFG_CCA1) |
+	      _IEEE80211_SHIFTMASK(1, MT7610_REG_EXT_CCA_CFG_CCA2) |
+	      _IEEE80211_SHIFTMASK(0, MT7610_REG_EXT_CCA_CFG_CCA3) |
+	      _IEEE80211_SHIFTMASK((1 << 3), MT7610_REG_EXT_CCA_CFG_CCA_MASK)
+};
+
+int
+mtwn_mt7610_phy_channel_calibrate(struct mtwn_softc *sc, bool power_on)
+{
+	const struct ieee80211com *ic = IF_MTWN_SC_TO_NET80211(sc);
+	uint32_t ibi, tx_alc, val;
+	const int is_5ghz = (IEEE80211_IS_CHAN_5GHZ(ic->ic_curchan)) ? 1 : 0;
+
+	if (MTWN_MT7610_CHIP_IS_MT7630(sc))
+		return (0);
+
+	/* Do power on configuration / calibration */
+	if (power_on) {
+		(void) mtwn_mt7610_mcu_calibrate(sc,
+		    MT7610_MCU_CALIBRATE_FUNC_R, 0);
+		(void) mtwn_mt7610_mcu_calibrate(sc,
+		    MT7610_MCU_CALIBRATE_FUNC_VCO,
+		    MTWN_CHANNEL_TO_HW_VALUE(ic->ic_curchan));
+		MTWN_UDELAY(sc, 20);
+
+		MTWN_TODO_PRINTF(sc, "%s: tssi checks\n", __func__);
+		/* TODO: tssi_enabled, tssi_dc_calibrate, etc */
+
+	}
+
+	/* save TX ALC config; zero it */
+	tx_alc = MTWN_REG_READ_4(sc, MT7610_REG_TX_ALC_CFG_0);
+	MTWN_REG_WRITE_4(sc, MT7610_REG_TX_ALC_CFG_0, 0);
+	MTWN_UDELAY(sc, 700);
+
+	/* save IBI */
+	ibi = MTWN_REG_READ_4(sc, MT7610_REG_BBP(IBI, 9));
+	MTWN_REG_WRITE_4(sc, MT7610_REG_BBP(IBI, 9), 0xffffff7e);
+
+	if (IEEE80211_IS_CHAN_5GHZ(ic->ic_curchan)) {
+		if (MTWN_CHANNEL_TO_HW_VALUE(ic->ic_curchan) < 100)
+			val = 0x701;
+		else if (MTWN_CHANNEL_TO_HW_VALUE(ic->ic_curchan) < 140)
+			val = 0x801;
+		else
+			val = 0x901;
+	} else
+		val = 0x600;
+
+	/* Full cal */
+	(void) mtwn_mt7610_mcu_calibrate(sc, MT7610_MCU_CALIBRATE_FUNC_FULL,
+	    val);
+
+	/* LC cal */
+	(void) mtwn_mt7610_mcu_calibrate(sc, MT7610_MCU_CALIBRATE_FUNC_LC,
+	    is_5ghz);
+
+	MTWN_MDELAY(sc, 20);
+
+	/* Restore IBI */
+	MTWN_REG_WRITE_4(sc, MT7610_REG_BBP(IBI, 9), ibi);
+
+	/* Restore TX ALC */
+	MTWN_REG_WRITE_4(sc, MT7610_REG_TX_ALC_CFG_0, tx_alc);
+
+	/* RXDCOC calibrate */
+	(void) mtwn_mt7610_mcu_calibrate(sc, MT7610_MCU_CALIBRATE_FUNC_RXDCOC,
+	    1);
+
+	return (0);
+}
+
+int
+mtwn_mt7610_set_channel(struct mtwn_softc *sc,
+    const struct ieee80211_channel *chan)
+{
+	MTWN_TODO_PRINTF(sc, "%s: called\n", __func__);
+	int ch_group_index, ret;
+	uint8_t channel;
+	uint32_t val;
+	uint16_t rf_bw_band;
+	int chw;
+
+	channel = MTWN_CHANNEL_TO_HW_VALUE(chan);
+	if (channel <= 14)
+		rf_bw_band = MTWN_MT7610_PHY_RF_G_BAND;
+	else
+		rf_bw_band = MTWN_MT7610_PHY_RF_A_BAND;
+
+	/* XXX TODO: only do 20MHz channels */
+	MTWN_TODO_PRINTF(sc, "%s: need to handle 40/80MHz channels\n", __func__);
+	ch_group_index = 0;
+	rf_bw_band |= MTWN_MT7610_PHY_RF_BW_20;
+	chw = 20;
+
+	/* Set bandwidth */
+	if (MTWN_IS_BUS_USB(sc)) {
+		ret = mtwn_mt7610_phy_bbp_set_bw(sc, chw);
+		if (ret != 0)
+			goto error;
+	} else {
+		if (chw == 40 || chw == 80)
+			val = 0x201;
+		else
+			val = 0x601;
+		MTWN_REG_WRITE_4(sc, MT7610_REG_TX_SW_CFG0, val);
+	}
+	ret = mtwn_mt7610_phy_set_bw(sc, chw, ch_group_index);
+	if (ret != 0)
+		goto error;
+
+	/* Set PHY bw/band */
+	ret = mtwn_mt7610_phy_set_band(sc, chan);
+	if (ret != 0)
+		goto error;
+
+	/* Setup CCA */
+	MTWN_REG_RMW_4(sc,
+	    MT7610_REG_EXT_CCA_CFG,
+	    (MT7610_REG_EXT_CCA_CFG_CCA0 | MT7610_REG_EXT_CCA_CFG_CCA1 |
+	     MT7610_REG_EXT_CCA_CFG_CCA2 | MT7610_REG_EXT_CCA_CFG_CCA3 |
+	     MT7610_REG_EXT_CCA_CFG_CCA_MASK),
+	    ext_cca_chan[ch_group_index]);
+
+	/* Setup RF band/parameters */
+	ret = mtwn_mt7610_phy_set_rf_band(sc, chan);
+	if (ret != 0)
+		goto error;
+	ret = mtwn_mt7610_phy_set_chan_rf_params(sc, chan, rf_bw_band);
+	if (ret != 0)
+		goto error;
+
+	/* Set japan TX filter at channel 14 */
+	if (channel == 14)
+		MTWN_REG_SET_4(sc, MT7610_REG_BBP(CORE, 1), 0x20);
+	else
+		MTWN_REG_CLEAR_4(sc, MT7610_REG_BBP(CORE, 1), 0x20);
+
+	/* Read RX gain */
+	(void) mtwn_mt7610_phy_read_rx_gain(sc, chan);
+
+	/* Set BBP */
+	ret = mtwn_mt7610_bbp_set_switch_table(sc, rf_bw_band, true);
+	if (ret != 0)
+		goto error;
+
+	/* Enable VCO */
+	MTWN_RF_REG_SET_4(sc, MT7610_REG_RF(0, 4), 0x80);
+
+	/* Done if scan */
+
+	/* Init AGC gain */
+
+	/* PHY calibrate */
+	ret = mtwn_mt7610_phy_channel_calibrate(sc, false);
+	if (ret != 0)
+		goto error;
+
+	/* get and write TX power parameters */
+	ret = mtwn_mt7610_phy_get_txpower(sc, chan);
+	if (ret != 0)
+		goto error;
+	/* XXX TODO: set/write tx power parameters */
+
+	return (0);
+error:
+	return (ret);
 }

@@ -25,10 +25,23 @@ struct mtwn_mt7610_rx_freq_cal {
 	uint8_t freq_offset;
 };
 
+struct mtwn_mt7610_rate_power {
+	union {
+		struct {
+			int8_t cck[4];
+			int8_t ofdm[8];
+			int8_t ht[16];
+			int8_t vht[2];
+		};
+		int8_t all[30];
+	};
+};
+
 struct mtwn_mt7610_chip_priv {
 	char *mcu_data;
 
 	struct mtwn_mt7610_rx_freq_cal rx_freq_cal;
+	struct mtwn_mt7610_rate_power rate_power;
 };
 
 #define	MTWN_MT7610_CHIP_SOFTC(sc)			\

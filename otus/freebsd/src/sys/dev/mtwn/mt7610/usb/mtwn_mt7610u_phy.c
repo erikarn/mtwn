@@ -70,6 +70,8 @@
 
 #include "mtwn_mt7610u_phy.h"
 
+#if 0
+
 /*
  * These are notionally USB specific versions of these routines.
  * The linux mt76 driver has these split (usb_phy.c versus pci_phy.c.)
@@ -102,9 +104,11 @@ static uint32_t ext_cca_chan[4] = {
 	      _IEEE80211_SHIFTMASK(0, MT7610_REG_EXT_CCA_CFG_CCA3) |
 	      _IEEE80211_SHIFTMASK((1 << 3), MT7610_REG_EXT_CCA_CFG_CCA_MASK)
 };
+#endif
 
+#if 0
 int
-mtwn_mt7610u_phy_channel_calibrate(struct mtwn_softc *sc, bool mac_stopped)
+mtwn_mt7612u_phy_channel_calibrate(struct mtwn_softc *sc, bool mac_stopped)
 {
 	const struct ieee80211com *ic = IF_MTWN_SC_TO_NET80211(sc);
 	bool is_5ghz;
@@ -122,31 +126,31 @@ mtwn_mt7610u_phy_channel_calibrate(struct mtwn_softc *sc, bool mac_stopped)
 
 	/* if 5GHz, mcu calibrate MCL_CAL_LC */
 	if (is_5ghz) {
-		ret = mtwn_mt7610_mcu_calibrate(sc,
-		    MT7610_MCU_CALIBRATE_FUNC_LC, 0);
+		ret = mtwn_mt7612_mcu_calibrate(sc,
+		    MT7612_MCU_CALIBRATE_FUNC_LC, 0);
 		if (ret != 0)
 			goto error;
 	}
 
 	/* rest of cal */
-	ret = mtwn_mt7610_mcu_calibrate(sc, MT7610_MCU_CALIBRATE_FUNC_TX_LOFT,
+	ret = mtwn_mt7612_mcu_calibrate(sc, MT7612_MCU_CALIBRATE_FUNC_TX_LOFT,
 	    is_5ghz);
 	if (ret != 0)
 		goto error;
-	ret = mtwn_mt7610_mcu_calibrate(sc, MT7610_MCU_CALIBRATE_FUNC_TXIQ,
+	ret = mtwn_mt7612_mcu_calibrate(sc, MT7612_MCU_CALIBRATE_FUNC_TXIQ,
 	    is_5ghz);
 	if (ret != 0)
 		goto error;
-	ret = mtwn_mt7610_mcu_calibrate(sc, MT7610_MCU_CALIBRATE_FUNC_RXIQC_FI,
+	ret = mtwn_mt7612_mcu_calibrate(sc, MT7612_MCU_CALIBRATE_FUNC_RXIQC_FI,
 	    is_5ghz);
 	if (ret != 0)
 		goto error;
-	ret = mtwn_mt7610_mcu_calibrate(sc,
-	    MT7610_MCU_CALIBRATE_FUNC_TEMP_SENSOR, 0);
+	ret = mtwn_mt7612_mcu_calibrate(sc,
+	    MT7612_MCU_CALIBRATE_FUNC_TEMP_SENSOR, 0);
 	if (ret != 0)
 		goto error;
-	ret = mtwn_mt7610_mcu_calibrate(sc,
-	    MT7610_MCU_CALIBRATE_FUNC_TX_SHAPING, 0);
+	ret = mtwn_mt7612_mcu_calibrate(sc,
+	    MT7612_MCU_CALIBRATE_FUNC_TX_SHAPING, 0);
 	if (ret != 0)
 		goto error;
 
@@ -162,7 +166,9 @@ mtwn_mt7610u_phy_channel_calibrate(struct mtwn_softc *sc, bool mac_stopped)
 error:
 	return (ret);
 }
+#endif
 
+#if 0
 int
 mtwn_mt7610u_phy_calibrate(struct mtwn_softc *sc)
 {
@@ -174,9 +180,11 @@ mtwn_mt7610u_phy_calibrate(struct mtwn_softc *sc)
 
 	return (0);
 }
+#endif
 
+#if 0
 int
-mtwn_mt7610u_set_channel(struct mtwn_softc *sc,
+mtwn_mt7612u_set_channel(struct mtwn_softc *sc,
     const struct ieee80211_channel *chan)
 {
 	MTWN_TODO_PRINTF(sc, "%s: called\n", __func__);
@@ -205,8 +213,14 @@ mtwn_mt7610u_set_channel(struct mtwn_softc *sc,
 	ch_group_index = 0;
 
 	/* read rx gain */
+	(void) mtwn_mt7612_phy_read_rx_gain(sc, chan);
+
 	/* phy set txpower regs */
+	(void) mtwn_mt7612_phy_set_txpower_regs(sc, chan);
+
 	/* configure tx delay */
+	(void) mtwn_mt7612_configure_tx_delay(sc, chan, bw);
+
 	/* set tx power */
 
 	/* phy set band */
@@ -232,7 +246,7 @@ mtwn_mt7610u_set_channel(struct mtwn_softc *sc,
 	 * XXX double check in mt76 that the channel here (which in mt76 is
 	 * chan->hw_value) matches IEEE channel values.
 	 */
-	(void) mtwn_mt7610_mcu_calibrate(sc, MT7610_MCU_CALIBRATE_FUNC_RC,
+	(void) mtwn_mt7612_mcu_calibrate(sc, MT7610_MCU_CALIBRATE_FUNC_RC,
 	    chan->ic_ieee);
 
 	/* rx lpf cal */
@@ -253,4 +267,4 @@ mtwn_mt7610u_set_channel(struct mtwn_softc *sc,
 
 	return (0);
 }
-
+#endif
