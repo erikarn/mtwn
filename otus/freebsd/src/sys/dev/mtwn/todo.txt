@@ -127,12 +127,15 @@ VIF creation
 
 Channel programming
 
-* mt76x2u_set_channel() (XXX wrong chipset method)
+* mt76x0_set_channel()
   - pre_tbtt_enable(false)
-  - mac_stop; phy_set_channel; mac_cc_reset; mac_resume
+  - disable dfs tasklet
+  - phy_set_channel; mac_cc_reset
+  - edcca init
+  - config dfs, enable dfs tasklet
   - pre_tbtt_enable(true)
 
-* mt76x2u_phy_set_channel() (XXX wrong chipset method)
+* mt76x0_phy_set_channel()
   - lots going on here; including a bunch of mcu routines I'll
     need to port
 
@@ -187,8 +190,26 @@ Config
 
 Enable receive, getting monitor mode packets
 
+* mac start will program initial rxfilter
+* need a way to update that on the fly?  Thas what mt76x0_config() does as an
+  example.
+
 --
 
 Handling said packets, decoding them, passing them up to net80211, etc
 
+--
 
+Ok, so the higher level methods I really need here to try and nail up
+basic monitor mode / scan support:
+
+* mac start
+* mac stop
+* set channel
+* update rxfilter
+* update tx power
+* phy calibrate periodic callback
+* mac stats periodic callback
+
+Hopefully at THIS point I'd start to see RX data and i'll need to write
+the frame receive, decoder and handling path!
