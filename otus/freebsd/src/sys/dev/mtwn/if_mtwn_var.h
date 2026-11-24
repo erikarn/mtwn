@@ -386,7 +386,7 @@ struct mtwn_softc {
 #define	MTWN_RF_REG_WRITE_4(_sc, _reg, _val)			\
 	    ((_sc)->sc_rfops.sc_rf_reg_write_4((_sc), (_reg), (_val)))
 #define	MTWN_RF_REG_RMW_4(_sc, _reg, _mask, _val)		\
-	    ((_sc)->sc_rfops.sc_rf_rmw_4((_sc), (_reg), (_mask),\
+	    ((_sc)->sc_rfops.sc_rf_reg_rmw_4((_sc), (_reg), (_mask),\
 	    (_val)))
 #define	MTWN_RF_REG_SET_4(_sc, _reg, _val)			\
 	    ((_sc)->sc_rfops.sc_rf_reg_rmw_4((_sc), (_reg), 0, (_val)))
