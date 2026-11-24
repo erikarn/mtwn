@@ -127,12 +127,12 @@ VIF creation
 
 Channel programming
 
-* mt76x2u_set_channel()
+* mt76x2u_set_channel() (XXX wrong chipset method)
   - pre_tbtt_enable(false)
   - mac_stop; phy_set_channel; mac_cc_reset; mac_resume
   - pre_tbtt_enable(true)
 
-* mt76x2u_phy_set_channel()
+* mt76x2u_phy_set_channel() (XXX wrong chipset method)
   - lots going on here; including a bunch of mcu routines I'll
     need to port
 
