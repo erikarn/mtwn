@@ -859,7 +859,174 @@ int
 mtwn_mt7610_phy_set_chan_rf_params(struct mtwn_softc *sc,
     const struct ieee80211_channel *c, uint16_t rf_bw_band)
 {
-	MTWN_TODO_PRINTF(sc, "%s: called\n", __func__);
+	const struct mtwn_mt7610_freq_item *freq_item;
+	uint16_t rf_band = rf_bw_band & 0xff00;
+	uint16_t rf_bw = rf_bw_band & 0x00ff;
+	bool b_sdm = false;
+	uint32_t mac_reg;
+	int i;
+	const uint8_t channel = MTWN_CHANNEL_TO_HW_VALUE(c);
+
+	for (i = 0; i < nitems(mtwn_mt7610_sdm_channel); i++) {
+		if (channel == mtwn_mt7610_sdm_channel[i]) {
+			b_sdm = true;
+			break;
+		}
+	}
+
+	for (i = 0; i < nitems(mtwn_mt7610_frequency_plan); i++) {
+		if (channel == mtwn_mt7610_frequency_plan[i].channel) {
+			rf_band = mtwn_mt7610_frequency_plan[i].band;
+
+			if (b_sdm)
+				freq_item = &mtwn_mt7610_sdm_frequency_plan[i];
+			else
+				freq_item = &mtwn_mt7610_frequency_plan[i];
+
+			MTWN_RF_REG_WRITE_4(sc, MT7610_REG_RF(0, 37), freq_item->pllR37);
+			MTWN_RF_REG_WRITE_4(sc, MT7610_REG_RF(0, 36), freq_item->pllR36);
+			MTWN_RF_REG_WRITE_4(sc, MT7610_REG_RF(0, 35), freq_item->pllR35);
+			MTWN_RF_REG_WRITE_4(sc, MT7610_REG_RF(0, 34), freq_item->pllR34);
+			MTWN_RF_REG_WRITE_4(sc, MT7610_REG_RF(0, 33), freq_item->pllR33);
+
+			MTWN_RF_REG_RMW_4(sc, MT7610_REG_RF(0, 32), 0xe0,
+				      freq_item->pllR32_b7b5);
+
+			/* R32<4:0> pll_den: (Denomina - 8) */
+			MTWN_RF_REG_RMW_4(sc, MT7610_REG_RF(0, 32),
+			    MT7610_REG_RF_PLL_DEN_MASK,
+			    freq_item->pllR32_b4b0);
+
+			/* R31<7:5> */
+			MTWN_RF_REG_RMW_4(sc, MT7610_REG_RF(0, 31), 0xe0,
+			    freq_item->pllR31_b7b5);
+
+			/* R31<4:0> pll_k(Nominator) */
+			MTWN_RF_REG_RMW_4(sc, MT7610_REG_RF(0, 31),
+			    MT7610_REG_RF_PLL_K_MASK, freq_item->pllR31_b4b0);
+
+			/* R30<7> sdm_reset_n */
+			if (b_sdm) {
+				MTWN_RF_REG_CLEAR_4(sc, MT7610_REG_RF(0, 30),
+						MT7610_REG_RF_SDM_RESET_MASK);
+				MTWN_RF_REG_SET_4(sc, MT7610_REG_RF(0, 30),
+					      MT7610_REG_RF_SDM_RESET_MASK);
+			} else {
+				MTWN_RF_REG_RMW_4(sc, MT7610_REG_RF(0, 30),
+					      MT7610_REG_RF_SDM_RESET_MASK,
+					      freq_item->pllR30_b7);
+			}
+
+			/* R30<6:2> sdmmash_prbs,sin */
+			MTWN_RF_REG_RMW_4(sc, MT7610_REG_RF(0, 30),
+				      MT7610_REG_RF_SDM_MASH_PRBS_MASK,
+				      freq_item->pllR30_b6b2);
+
+			/* R30<1> sdm_bp */
+			MTWN_RF_REG_RMW_4(sc, MT7610_REG_RF(0, 30),
+			    MT7610_REG_RF_SDM_BP_MASK,
+			    freq_item->pllR30_b1 << 1);
+
+			/* R30<0> R29<7:0> (hex) pll_n */
+			MTWN_RF_REG_WRITE_4(sc, MT7610_REG_RF(0, 29),
+			    freq_item->pll_n & 0xff);
+
+			MTWN_RF_REG_RMW_4(sc, MT7610_REG_RF(0, 30), 0x1,
+			      (freq_item->pll_n >> 8) & 0x1);
+
+			/* R28<7:6> isi_iso */
+			MTWN_RF_REG_RMW_4(sc, MT7610_REG_RF(0, 28),
+			    MT7610_REG_RF_ISI_ISO_MASK,
+			    freq_item->pllR28_b7b6);
+
+			/* R28<5:4> pfd_dly */
+			MTWN_RF_REG_RMW_4(sc, MT7610_REG_RF(0, 28),
+			    MT7610_REG_RF_PFD_DLY_MASK,
+			    freq_item->pllR28_b5b4);
+
+			/* R28<3:2> clksel option */
+			MTWN_RF_REG_RMW_4(sc, MT7610_REG_RF(0, 28),
+			    MT7610_REG_RF_CLK_SEL_MASK,
+			    freq_item->pllR28_b3b2);
+
+			/* R28<1:0> R27<7:0> R26<7:0> (hex) sdm_k */
+			MTWN_RF_REG_WRITE_4(sc, MT7610_REG_RF(0, 26),
+				     freq_item->pll_sdm_k & 0xff);
+			MTWN_RF_REG_WRITE_4(sc, MT7610_REG_RF(0, 27),
+				     (freq_item->pll_sdm_k >> 8) & 0xff);
+
+			MTWN_RF_REG_RMW_4(sc, MT7610_REG_RF(0, 28), 0x3,
+				      (freq_item->pll_sdm_k >> 16) & 0x3);
+
+			/* R24<1:0> xo_div */
+			MTWN_RF_REG_RMW_4(sc, MT7610_REG_RF(0, 24),
+			    MT7610_REG_RF_XO_DIV_MASK,
+			    freq_item->pllR24_b1b0);
+
+			break;
+		}
+	}
+
+	for (i = 0; i < nitems(mtwn_mt7610_rf_bw_switch_tab); i++) {
+		if (rf_bw == mtwn_mt7610_rf_bw_switch_tab[i].bw_band) {
+			MTWN_RF_REG_WRITE_4(sc,
+				     mtwn_mt7610_rf_bw_switch_tab[i].rf_bank_reg,
+				     mtwn_mt7610_rf_bw_switch_tab[i].value);
+		} else if ((rf_bw == (mtwn_mt7610_rf_bw_switch_tab[i].bw_band & 0xFF)) &&
+			   (rf_band & mtwn_mt7610_rf_bw_switch_tab[i].bw_band)) {
+			MTWN_RF_REG_WRITE_4(sc,
+				     mtwn_mt7610_rf_bw_switch_tab[i].rf_bank_reg,
+				     mtwn_mt7610_rf_bw_switch_tab[i].value);
+		}
+	}
+
+	for (i = 0; i < nitems(mtwn_mt7610_rf_band_switch_tab); i++) {
+		if (mtwn_mt7610_rf_band_switch_tab[i].bw_band & rf_band) {
+			MTWN_RF_REG_WRITE_4(sc,
+				     mtwn_mt7610_rf_band_switch_tab[i].rf_bank_reg,
+				     mtwn_mt7610_rf_band_switch_tab[i].value);
+		}
+	}
+
+	MTWN_REG_CLEAR_4(sc, MT7610_REG_RF_MISC, 0xc);
+
+	//band = (rf_band & RF_G_BAND) ? NL80211_BAND_2GHZ : NL80211_BAND_5GHZ;
+	if (mtwn_mt7610_ext_pa_enabled(sc, c)) {
+		/* MT_RF_MISC (offset: 0x0518)
+		 * [2]1'b1: enable external A band PA
+		 *    1'b0: disable external A band PA
+		 * [3]1'b1: enable external G band PA
+		 *    1'b0: disable external G band PA
+		 */
+		if (rf_band &  MTWN_MT7610_PHY_RF_A_BAND)
+			MTWN_REG_SET_4(sc, MT7610_REG_RF_MISC, (1 << 2));
+		else
+			MTWN_REG_SET_4(sc, MT7610_REG_RF_MISC, (1 << 3));
+
+		/* External PA */
+		for (i = 0; i < nitems(mtwn_mt7610_rf_ext_pa_tab); i++)
+			if (mtwn_mt7610_rf_ext_pa_tab[i].bw_band & rf_band)
+				MTWN_RF_REG_WRITE_4(sc,
+					mtwn_mt7610_rf_ext_pa_tab[i].rf_bank_reg,
+					mtwn_mt7610_rf_ext_pa_tab[i].value);
+	}
+
+	if (rf_band & MTWN_MT7610_PHY_RF_G_BAND) {
+		MTWN_REG_WRITE_4(sc, MT7610_REG_TX0_RF_GAIN_ATTEN, 0x63707400);
+		/* Set Atten mode = 2 For G band, Disable Tx Inc dcoc. */
+		mac_reg = MTWN_REG_READ_4(sc, MT7610_REG_TX_ALC_CFG_1);
+		mac_reg &= 0x896400FF;
+		MTWN_REG_WRITE_4(sc, MT7610_REG_TX_ALC_CFG_1, mac_reg);
+	} else {
+		MTWN_REG_WRITE_4(sc, MT7610_REG_TX0_RF_GAIN_ATTEN, 0x686A7800);
+		/* Set Atten mode = 0
+		 * For Ext A band, Disable Tx Inc dcoc Cal.
+		 */
+		mac_reg = MTWN_REG_READ_4(sc, MT7610_REG_TX_ALC_CFG_1);
+		mac_reg &= 0x890400FF;
+		MTWN_REG_WRITE_4(sc, MT7610_REG_TX_ALC_CFG_1, mac_reg);
+	}
+
 	return (0);
 }
 
@@ -1035,6 +1202,7 @@ mtwn_mt7610_set_channel(struct mtwn_softc *sc,
 	/* Done if scan */
 
 	/* Init AGC gain */
+	MTWN_TODO_PRINTF(sc, "%s: init agc gain\n", __func__);
 
 	/* PHY calibrate */
 	ret = mtwn_mt7610_phy_channel_calibrate(sc, false);
@@ -1045,7 +1213,7 @@ mtwn_mt7610_set_channel(struct mtwn_softc *sc,
 	ret = mtwn_mt7610_phy_get_txpower(sc, chan);
 	if (ret != 0)
 		goto error;
-	/* XXX TODO: set/write tx power parameters */
+	MTWN_TODO_PRINTF(sc, "%s: set/write txpower\n", __func__);
 
 	return (0);
 error:

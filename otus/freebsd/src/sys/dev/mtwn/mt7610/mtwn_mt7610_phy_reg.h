@@ -36,6 +36,23 @@
 #define	MT7610_REG_BBP_AGC_GAIN			0x00007f00
 #define	MT7610_REG_BBP_AGC_GAIN_S		8
 
+/* RF, bank 0, reg 24 */
+#define	MT7610_REG_RF_XO_DIV_MASK		0x00000003
+
+/* RF, bank 0, reg 28 */
+#define	MT7610_REG_RF_ISI_ISO_MASK		0x000000c0
+#define	MT7610_REG_RF_PFD_DLY_MASK		0x00000030
+#define	MT7610_REG_RF_CLK_SEL_MASK		0x0000000c
+
+/* RF, bank 0, reg 30 */
+#define	MT7610_REG_RF_SDM_RESET_MASK		0x00000080
+#define	MT7610_REG_RF_SDM_MASH_PRBS_MASK	0x0000007c
+#define	MT7610_REG_RF_SDM_BP_MASK		0x00000002
+
+/* RF, bank 0, reg 31 */
+#define	MT7610_REG_RF_PLL_DEN_MASK		0x0000001f
+#define	MT7610_REG_RF_PLL_K_MASK		0x0000001f
+
 #define	MT7610_REG_RF(bank, reg)		((bank) << 16 | (reg))
 #define	MT7610_REG_RF_BANK(offset)		((offset) >> 16)
 #define	MT7610_REG_RF_REG(offset)		((offset) & 0xff)
