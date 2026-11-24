@@ -496,3 +496,51 @@ mtwn_mt7610_mac_reset_counters(struct mtwn_softc *sc)
 
 	return (0);
 }
+
+/**
+ * @brief Stop MAC TX/RX.
+ *
+ * Based on mt76 mt76x0_mac_stop()
+ */
+int
+mtwn_mt7610_mac_stop(struct mtwn_softc *sc)
+{
+	int i = 200, ok = 0;
+
+	MTWN_REG_CLEAR_4(sc, MT7610_REG_TXOP_CTRL_CFG,
+	    MT7610_REG_TXOP_CTRL_CFG_ED_CCA_EN);
+
+	/* Page count on TxQ */
+	while (i-- && ((MTWN_REG_READ_4(sc, 0x0438) & 0xffffffff) ||
+	    (MTWN_REG_READ_4(sc, 0x0a30) & 0x000000ff) ||
+	    (MTWN_REG_READ_4(sc, 0x0a34) & 0x00ff00ff)))
+		MTWN_MDELAY(sc, 10);
+
+	if (!mtwn_reg_poll(sc, MT7610_REG_MAC_STATUS,
+	    MT7610_REG_MAC_STATUS_TX, 0, 1000))
+		MTWN_ERR_PRINTF(sc, "%s: Warning: MAC TX did not stop!\n",
+		    __func__);
+
+	MTWN_REG_CLEAR_4(sc, MT7610_REG_MAC_SYS_CTRL,
+	    MT7610_REG_MAC_SYS_CTRL_ENABLE_RX |
+	    MT7610_REG_MAC_SYS_CTRL_ENABLE_TX);
+
+	/* Page count on RxQ */
+	for (i = 0; i < 200; i++) {
+		if (!(MTWN_REG_READ_4(sc, MT7610_REG_RXQ_STA) & 0x00ff0000) &&
+		    !MTWN_REG_READ_4(sc, 0x0a30) &&
+		    !MTWN_REG_READ_4(sc, 0x0a34)) {
+			if (ok++ > 5)
+				break;
+			continue;
+		}
+		MTWN_MDELAY(sc, 1);
+	}
+
+	if (!mtwn_reg_poll(sc, MT7610_REG_MAC_STATUS,
+	    MT7610_REG_MAC_STATUS_RX, 0, 1000))
+		MTWN_ERR_PRINTF(sc, "%s: Warning: MAC RX did not stop!\n",
+		    __func__);
+
+	return (0);
+}

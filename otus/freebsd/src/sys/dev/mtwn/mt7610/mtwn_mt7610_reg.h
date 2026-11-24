@@ -148,6 +148,9 @@
 #define	MT7610_REG_BCN_OFFSET(_n)			\
 	    (MT7610_REG_BCN_OFFSET_BASE + ((_n) << 2))
 
+#define	MT7610_REG_RXQ_STA			0x0430
+#define	MT7610_REG_TXQ_STA			0x0434
+
 #define	MT7610_REG_RF_MISC			0x0518
 
 #define	MT76_REG_COM_REG0			0x0730
