@@ -212,6 +212,7 @@ struct mtwn_softc {
 	struct {
 		bool mcu_running;
 		bool power_on;
+		bool running;
 	} flags;
 
 	/* Bus operations */
