@@ -57,6 +57,7 @@
 
 #include "../../if_mtwn_var.h"
 #include "../../if_mtwn_debug.h"
+#include "../../if_mtwn_util.h"
 
 #include "../mtwn_mt7610_var.h"
 #include "../mtwn_mt7610_init.h"
@@ -69,6 +70,7 @@
 #include "../mtwn_mt7610_eeprom_reg.h" /* XXX for eeprom size */
 
 #include "mtwn_chip_mt7610u_usb.h"
+#include "mtwn_mt7610u_mac.h"
 
 static void
 mtwn_chip_mt7610u_detach(struct mtwn_softc *sc)
@@ -325,6 +327,64 @@ mtwn_mt7610u_efuse_populate(struct mtwn_softc *sc)
 	return (0);
 }
 
+/**
+ * @brief Start hardware operation.
+ *
+ * Yes, this presupposes firmware is loaded and initial configuration
+ * is applied.  This is called during the parent / start path to
+ * start DMA.
+ *
+ * This is based on mt76x0u_start() .
+ */
+static int
+mtwn_mt7610u_hw_start(struct mtwn_softc *sc)
+{
+	int ret;
+
+	ret = MTWN_CHIP_MAC_START(sc);
+	if (ret != 0)
+		return (ret);
+
+	ret = MTWN_CHIP_PHY_CALIBRATE(sc, true);
+	if (ret != 0)
+		return (ret);
+
+	return (0);
+}
+
+/**
+ * @brief Stop hardware.
+ *
+ * This is called during the parent path to stop DMA.
+ *
+ * This is based on mt76x0u_stop().
+ */
+static int
+mtwn_mt7610u_hw_stop(struct mtwn_softc *sc)
+{
+	int ret;
+
+	ret = MTWN_BEACON_EXIT_CONFIG(sc);
+	if (ret != 0)
+		return (ret);
+
+	if (!mtwn_reg_poll(sc, MT76_REG_USB_DMA_CFG,
+	    MT76_REG_USB_DMA_CFG_TX_BUSY, 0, 1000)) {
+		MTWN_ERR_PRINTF(sc, "%s: TX DMA didn't stop?\n", __func__);
+	}
+
+	ret = MTWN_CHIP_MAC_STOP(sc);
+	if (ret != 0)
+		return (ret);
+
+	if (!mtwn_reg_poll(sc, MT76_REG_USB_DMA_CFG,
+	    MT76_REG_USB_DMA_CFG_RX_BUSY, 0, 1000)) {
+		MTWN_ERR_PRINTF(sc, "%s: RX DMA didn't stop?\n", __func__);
+	}
+
+	return (0);
+}
+
 int
 mtwn_chip_mt7610u_attach(struct mtwn_softc *sc)
 {
@@ -384,6 +444,13 @@ mtwn_chip_mt7610u_attach(struct mtwn_softc *sc)
 	sc->sc_chipops.sc_chip_pre_phy_setup = mtwn_mt7610_pre_phy_setup;
 	sc->sc_chipops.sc_chip_mac_config_macaddr_list =
 	    mtwn_mt7610_mac_config_macaddr_list;
+
+	sc->sc_chipops.sc_chip_mac_start = mtwn_mt7610u_mac_start;
+	sc->sc_chipops.sc_chip_mac_stop = mtwn_mt7610_mac_stop;
+	sc->sc_chipops.sc_chip_hw_start = mtwn_mt7610u_hw_start;
+	sc->sc_chipops.sc_chip_hw_stop = mtwn_mt7610u_hw_stop;
+	sc->sc_chipops.sc_chip_phy_calibrate = mtwn_mt7610_phy_channel_calibrate;
+	sc->sc_chipops.sc_chip_phy_set_channel = mtwn_mt7610_set_channel;
 
 	/* eeprom attach methods */
 	sc->sc_eepromops.sc_eeprom_init = mtwn_mt7610u_eeprom_init;

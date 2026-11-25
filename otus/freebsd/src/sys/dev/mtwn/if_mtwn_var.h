@@ -111,6 +111,14 @@ struct mtwn_chip_ops {
 			    struct mtwn_supported_streams *);
 	int		(*sc_chip_pre_phy_setup)(struct mtwn_softc *);
 	void		(*sc_chip_mac_config_macaddr_list)(struct mtwn_softc *);
+
+	int		(*sc_chip_mac_start)(struct mtwn_softc *);
+	int		(*sc_chip_mac_stop)(struct mtwn_softc *);
+	int		(*sc_chip_hw_start)(struct mtwn_softc *);
+	int		(*sc_chip_hw_stop)(struct mtwn_softc *);
+	int		(*sc_chip_phy_calibrate)(struct mtwn_softc *, bool);
+	int		(*sc_chip_phy_set_channel)(struct mtwn_softc *,
+			    const struct ieee80211_channel *);
 };
 
 struct mtwn_mcu_ops {
@@ -344,6 +352,19 @@ struct mtwn_softc {
 #define	MTWN_CHIP_MAC_CONFIG_MACADDR_LIST(_sc)		\
 	    ((_sc)->sc_chipops.sc_chip_mac_config_macaddr_list((_sc)))
 
+#define	MTWN_CHIP_MAC_START(_sc)		\
+	    ((_sc)->sc_chipops.sc_chip_mac_start((_sc)))
+#define	MTWN_CHIP_MAC_STOP(_sc)		\
+	    ((_sc)->sc_chipops.sc_chip_mac_start((_sc)))
+#define	MTWN_CHIP_HW_START(_sc)		\
+	    ((_sc)->sc_chipops.sc_chip_hw_start((_sc)))
+#define	MTWN_CHIP_HW_STOP(_sc)		\
+	    ((_sc)->sc_chipops.sc_chip_hw_start((_sc)))
+#define	MTWN_CHIP_PHY_CALIBRATE(_sc, _pwr)		\
+	    ((_sc)->sc_chipops.sc_chip_phy_calibrate((_sc), (_pwr)))
+#define	MTWN_CHIP_PHY_SET_CHANNEL(_sc, _c)		\
+	    ((_sc)->sc_chipops.sc_chip_phy_set_channel((_sc), (_c)))
+
 /* MCU operations */
 #define	MTWN_MCU_INIT(_sc, _data, _len)			\
 	    ((_sc)->sc_mcuops.sc_mcu_init((_sc), (_data), (_len)))
@@ -404,6 +425,8 @@ struct mtwn_softc {
 
 #define	MTWN_BEACON_INIT_CONFIG(_sc)				\
 	    ((_sc)->sc_beacon_ops.sc_init_beacon_config((_sc)))
+#define	MTWN_BEACON_EXIT_CONFIG(_sc)				\
+	    ((_sc)->sc_beacon_ops.sc_exit_beacon_config((_sc)))
 
 /* Vap */
 struct mtwn_node {
@@ -434,6 +457,8 @@ extern	int mtwn_detach(struct mtwn_softc *);
 extern	int mtwn_suspend(struct mtwn_softc *);
 extern	int mtwn_resume(struct mtwn_softc *);
 extern	void mtwn_sysctl_attach(struct mtwn_softc *);
+extern	int mtwn_hw_start_locked(struct mtwn_softc *sc);
+extern	int mtwn_hw_stop_locked(struct mtwn_softc *sc);
 
 /* if_mtwn_firmware.c */
 extern	int mtwn_firmware_load(struct mtwn_softc *);

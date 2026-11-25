@@ -245,6 +245,7 @@ mtwn_init(struct mtwn_softc *sc)
 	}
 
 	/* TODO: Init/setup PHY calibration work (mt76x0_phy_calibration_work) */
+	MTWN_TODO_PRINTF(sc, "%s: TODO - mt76x0_phy_calibration_work?\n", __func__);
 
 	/* PHY init */
 	ret = MTWN_CHIP_PHY_INIT(sc);
@@ -273,10 +274,11 @@ mtwn_init(struct mtwn_softc *sc)
 
 	/* TODO: MT_TX_SG_MAX_SIZE / sg_en flag for enabling AMSDU? */
 
-	/* TODO: everything that's in mt76x0_register_device() */
 
 	/* Calculate list of mac addresses to provide for vaps */
 	MTWN_CHIP_MAC_CONFIG_MACADDR_LIST(sc);
+
+	/* These bits are in mt76x0_register_device() */
 
 	/* TODO: fetch the LDPC coding config for 2g/5g vht and ht */
 	MTWN_TODO_PRINTF(sc, "%s: disable VHT LDPC coding in 5ghz if enabled\n", __func__);
@@ -307,12 +309,75 @@ error:
 	return (ret);
 }
 
+int
+mtwn_hw_start_locked(struct mtwn_softc *sc)
+{
+	struct ieee80211com *ic = IF_MTWN_SC_TO_NET80211(sc);
+	int ret;
+
+	MTWN_LOCK_ASSERT(sc, MA_OWNED);
+
+
+	/* Set initial channel */
+	ret = MTWN_CHIP_PHY_SET_CHANNEL(sc, ic->ic_curchan);
+	if (ret != 0) {
+		MTWN_ERR_PRINTF(sc, "%s: failed to set initial channel (err %d)\n",
+		    __func__, ret);
+		return (ret);
+	}
+
+	/* Call HAL hw start method */
+	ret = MTWN_CHIP_HW_START(sc);
+	if (ret != 0) {
+		MTWN_ERR_PRINTF(sc, "%s: failed to start hw (err %d)\n",
+		    __func__, ret);
+		return (ret);
+	}
+
+	/* Start PHY calibration event */
+	MTWN_TODO_PRINTF(sc, "%s: start phy calib\n", __func__);
+	/* Start MAC stats event */
+	MTWN_TODO_PRINTF(sc, "%s: start mac stats\n", __func__);
+
+	sc->flags.running = true;
+	return (0);
+}
+
+int
+mtwn_hw_stop_locked(struct mtwn_softc *sc)
+{
+	int ret;
+
+	MTWN_LOCK_ASSERT(sc, MA_OWNED);
+
+	MTWN_TODO_PRINTF(sc, "%s: called\n", __func__);
+
+	/* Clear running flag */
+	sc->flags.running = false;
+
+	/* Transport layer - drain existing transfers */
+	MTWN_TODO_PRINTF(sc, "%s: drain transport\n", __func__);
+	/* TODO: avoid loops; mtwn detach path via USB is doing USB transfer drain there! */
+
+	/* Call HAL hw stop method */
+	ret = MTWN_CHIP_HW_STOP(sc);
+	if (ret != 0)
+		MTWN_ERR_PRINTF(sc, "%s: HW_STOP failed (%d)\n", __func__, ret);
+
+	/* Drain/stop MAC stats event */
+	MTWN_TODO_PRINTF(sc, "%s: stop mac stats\n", __func__);
+	/* Drain/stop PHY calibration event */
+	MTWN_TODO_PRINTF(sc, "%s: stop phy calib\n", __func__);
+
+	return (0);
+}
+
 /*
  * TODO: figure out why upon driver load I'm not forcing a firmware
  * load; likely the mt76 driver never handled that case and
  * also detects that there's already firmware loaded?
  *
- * TODO: implement the rest of hardware_init, enough to get
+ * DONE: implement the rest of hardware_init, enough to get
  * to running state and read the EEPROM MAC and whatever else
  * is needed for net80211 registration!
  *
@@ -350,12 +415,20 @@ mtwn_attach(struct mtwn_softc *sc)
 	return (0);
 }
 
+/**
+ * @brief Detach shared driver state.
+ *
+ * This is called by the bus layer (usb, etc) which itself takes care of
+ * shutting down the transport endpoints and chip stuff.  This detaches
+ * any shared state like net80211 state, scheduled shared tasks/callouts
+ * and such.
+ */
 int
 mtwn_detach(struct mtwn_softc *sc)
 {
 	int ret;
 
-	MTWN_TODO_PRINTF(sc, "%s: bye!\n", __func__);
+	MTWN_TODO_PRINTF(sc, "%s: shutdown shared state/tasks\n", __func__);
 
 	MTWN_LOCK(sc);
 	sc->sc_detached = 1;

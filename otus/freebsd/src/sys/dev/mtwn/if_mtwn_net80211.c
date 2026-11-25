@@ -282,8 +282,16 @@ static void
 mtwn_net80211_set_channel(struct ieee80211com *ic)
 {
 	struct mtwn_softc *sc = IF_MTWN_NET80211_TO_SC(ic);
+	int ret;
 
 	MTWN_TODO_PRINTF(sc, "%s: called\n", __func__);
+
+	MTWN_LOCK(sc);
+	ret = MTWN_CHIP_PHY_SET_CHANNEL(sc, ic->ic_curchan);
+	if (ret != 0)
+		MTWN_ERR_PRINTF(sc, "%s: failed to set channel (err %d)\n",
+		    __func__, ret);
+	MTWN_UNLOCK(sc);
 }
 
 static int
@@ -309,7 +317,30 @@ mtwn_net80211_parent(struct ieee80211com *ic)
 {
 	struct mtwn_softc *sc = IF_MTWN_NET80211_TO_SC(ic);
 
+	MTWN_LOCK(sc);
+	if (sc->sc_detached) {
+		MTWN_UNLOCK(sc);
+		return;
+	}
+
 	MTWN_TODO_PRINTF(sc, "%s: called\n", __func__);
+
+	if ((sc->flags.running == false) && ic->ic_nrunning > 0) {
+		mtwn_hw_start_locked(sc);
+		MTWN_UNLOCK(sc);
+		ieee80211_start_all(ic);
+		return;
+	}
+	if ((sc->flags.running == true) && ic->ic_nrunning > 0) {
+		/* TODO: update promisc */
+		MTWN_UNLOCK(sc);
+		return;
+	}
+	if ((sc->flags.running == true) && ic->ic_nrunning == 0) {
+		mtwn_hw_stop_locked(sc);
+		MTWN_UNLOCK(sc);
+		return;
+	}
 }
 
 static struct ieee80211vap *

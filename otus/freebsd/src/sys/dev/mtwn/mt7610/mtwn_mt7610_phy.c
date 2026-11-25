@@ -73,6 +73,9 @@
 
 #include "mtwn_mt7610_phy_initvals.h"
 
+/**
+ * @brief Initialise the initial antenna configuration.
+ */
 int
 mtwn_mt7610_phy_ant_select(struct mtwn_softc *sc)
 {
