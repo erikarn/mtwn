@@ -128,6 +128,44 @@ What's required for bringing up a STA mode VAP:
 
 ===
 
+What's required to receive frames
+
+* mt76x02_queue_rx_skb()
+
+This demuxes baed on the RX queue to either mt76_mcu_rx_event()
+or mt76x02_mac_process_rx().
+
+For USB we should already know this based on endpoint.
+
+There's also the setup path:
+
+* mt76u_build_rx_skb()
+
+Ok, so for RX processing (for USB):
+
+* mt76u_process_rx_entry()
+* will do a bunch of size checking
+* call dev->drv->rx_check() (no rx_check for mt7610u USB?)
+* then call mt76u_build_rx_skb() to build a receive skb
+  based on the USB transfer data
+* then append a bunch of urb frags (i think this is the scatter/gather
+  array that FreeBSD is already doing for us in this path?)
+* then it calls dev->drv->rx_skb(dev, MT_RXQ_MAIN, skb, NULL);
+
+ok, so it has a NULL info section at this point.
+
+* mt76x02_queue_rx_skb()
+
+This ignores the info passed in; it instead pulls the first
+'struct mt76x02_rxwi' bytes from the front of the skb, and
+then it returns THAT as the info header, and the skb now
+points to th ebeginning of the data after said rxwi header.
+
+* mt76x02_mac_process_rx()
+
+
+===
+
 What's required for bringing up a hostap mode VAP:
 
 ===
@@ -139,3 +177,8 @@ What's required for bringing up an IBSS mode VAP:
 What's required for STA + AP concurrent VAPs:
 
 ===
+
+The methods required for adding/removing nodes:
+
+* mt76x02_sta_add / mt76x02_sta_remove
+* mt76x02_sta_ps (powersave mode change)
